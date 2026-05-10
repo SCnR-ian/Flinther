@@ -77,6 +77,9 @@ export function AuthProvider({ children }) {
     setError(null)
     try {
       const { data } = await authAPI.register(userData)
+      if (data.needsVerification) {
+        return { success: true, needsVerification: true }
+      }
       persistUser(data.user, data.token)
       return { success: true, user: data.user }
     } catch (err) {

@@ -71,6 +71,7 @@ export const authAPI = {
   },
   getSSOToken:    ()      => api.post('/auth/sso-token'),
   verifySSOToken: (token) => api.get(`/auth/sso-callback?token=${token}`),
+  verifyEmail:    (token) => api.get(`/auth/verify-email?token=${token}`),
 };
 
 // ---------------------------------------------------------------------------

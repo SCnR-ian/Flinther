@@ -10,6 +10,7 @@ import ResetPasswordPage  from '@/pages/ResetPasswordPage'
 import OAuthCallbackPage  from '@/pages/OAuthCallbackPage'
 import SSOCallbackPage    from '@/pages/SSOCallbackPage'
 import OnboardingPage     from '@/pages/OnboardingPage'
+import VerifyEmailPage   from '@/pages/VerifyEmailPage'
 import DashboardPage      from '@/pages/DashboardPage'
 import AdminDashboard     from '@/pages/admin/AdminDashboard'
 import FinanceReportPage  from '@/pages/admin/FinanceReportPage'
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
   { path: '/reset-password',  element: <ResetPasswordPage /> },
   { path: '/auth/callback',   element: <OAuthCallbackPage /> },
   { path: '/auth/sso',        element: <SSOCallbackPage /> },
+  { path: '/verify-email',     element: <VerifyEmailPage /> },
   { path: '/onboarding',      element: <ProtectedRoute><OnboardingPage /></ProtectedRoute> },
   { path: '/admin',           element: <AdminRoute><AdminDashboard /></AdminRoute> },
   { path: '/admin/finance',   element: <AdminRoute><FinanceReportPage /></AdminRoute> },

@@ -10,8 +10,9 @@ export default function RegisterPage() {
   const { club } = useClub()
   const navigate = useNavigate()
 
-  const [form, setForm]     = useState({ name: '', email: '', password: '', confirmPassword: '' })
-  const [errors, setErrors] = useState({})
+  const [form, setForm]                   = useState({ name: '', email: '', password: '', confirmPassword: '' })
+  const [errors, setErrors]               = useState({})
+  const [verificationSent, setVerificationSent] = useState(false)
 
   const validate = () => {
     const e = {}
@@ -37,14 +38,31 @@ export default function RegisterPage() {
     const { confirmPassword, ...payload } = form
     const result = await register(payload)
     if (result.success) {
-      // Platform signup (no club) → go set up their club
-      // Club signup → go to dashboard
+      if (result.needsVerification) { setVerificationSent(true); return }
       navigate(club ? '/dashboard' : '/onboarding', { replace: true })
     }
   }
 
   const handleGoogle = () => {
     window.location.href = `${API_URL}/auth/google`
+  }
+
+  if (verificationSent) {
+    return (
+      <div className="min-h-screen bg-white flex flex-col items-center justify-center px-4" style={{ fontFamily: '"DM Sans", sans-serif' }}>
+        <div className="w-full max-w-[360px] text-center">
+          <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-6 text-3xl">
+            ✉️
+          </div>
+          <h1 className="text-2xl text-gray-900 mb-3" style={{ fontFamily: '"Kanit", sans-serif' }}>Check your email</h1>
+          <p className="text-gray-400 text-sm leading-relaxed mb-6">
+            We've sent a verification link to <span className="text-gray-700 font-medium">{form.email}</span>.
+            Click the link to activate your account.
+          </p>
+          <p className="text-xs text-gray-300">Didn't receive it? Check your spam folder.</p>
+        </div>
+      </div>
+    )
   }
 
   return (
