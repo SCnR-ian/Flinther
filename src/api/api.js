@@ -398,4 +398,10 @@ export const feedbackAPI = {
   submit: (data) => api.post('/feedback', data),
 }
 
+export const billingAPI = {
+  status:   ()   => api.get('/billing/status'),
+  checkout: ()   => api.post('/billing/checkout'),
+  portal:   ()   => api.post('/billing/portal'),
+}
+
 export default api;

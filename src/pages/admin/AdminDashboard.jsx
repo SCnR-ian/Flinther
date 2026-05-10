@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
 import { Camera, Plus, Trash2 } from 'lucide-react'
-import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI } from '@/api/api'
+import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI } from '@/api/api'
 import ShopManager       from './ShopManager'
 import FinanceReportPage from './FinanceReportPage'
 import QRCode from 'react-qr-code'
@@ -564,6 +564,9 @@ const [members,      setMembers]      = useState([])
   const [showAddMember,      setShowAddMember]      = useState(false)
   const [addMemberForm,      setAddMemberForm]      = useState({ name: '', email: '', password: '', phone: '' })
   const [addMemberError,     setAddMemberError]     = useState('')
+  const [showUpgradeModal,   setShowUpgradeModal]   = useState(false)
+  const [billingStatus,      setBillingStatus]      = useState(null)
+  const [upgradeLoading,     setUpgradeLoading]     = useState(false)
   const [loading,      setLoading]      = useState(false)
   const [memberModal,  setMemberModal]  = useState(null) // { member, bookings, coaching, social, coachSessions, hoursBalance } | null
   const [memberModalLoading, setMemberModalLoading] = useState(false)
@@ -716,6 +719,10 @@ const [sessionForm,      setSessionForm]      = useState({
 
   // Fetch today's coaching sessions once on mount
   useEffect(() => {
+    billingAPI.status().then(({ data }) => setBillingStatus(data)).catch(() => {})
+  }, [])
+
+  useEffect(() => {
     const today = toISO(new Date())
     Promise.allSettled([
       coachingAPI.getSessions({ date: today }),
@@ -832,8 +839,30 @@ const [sessionForm,      setSessionForm]      = useState({
       setAddMemberForm({ name: '', email: '', password: '', phone: '' })
       setShowAddMember(false)
     } catch (err) {
+      if (err.response?.status === 402 && err.response?.data?.code === 'BILLING_REQUIRED') {
+        setShowAddMember(false)
+        setShowUpgradeModal(true)
+        return
+      }
       setAddMemberError(err.response?.data?.message ?? 'Could not add member.')
     }
+  }
+
+  const handleUpgrade = async () => {
+    setUpgradeLoading(true)
+    try {
+      const { data } = await billingAPI.checkout()
+      window.location.href = data.url
+    } catch {
+      setUpgradeLoading(false)
+    }
+  }
+
+  const handleManageBilling = async () => {
+    try {
+      const { data } = await billingAPI.portal()
+      window.location.href = data.url
+    } catch { /* ignore */ }
   }
 
   const handleSaveMemberEdit = async () => {
@@ -4696,7 +4725,48 @@ const [sessionForm,      setSessionForm]      = useState({
       {activeTab === 'Shop' && <ShopManager />}
 
       {/* ── Finance Tab ───────────────────────────────────────────────────── */}
-      {activeTab === 'Finance' && <FinanceReportPage />}
+      {activeTab === 'Finance' && (
+        <>
+          {/* Billing card */}
+          {billingStatus && !billingStatus.exempt && (
+            <div className="mb-6 bg-white border border-gray-100 rounded-2xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <p className="text-xs font-medium tracking-widest uppercase text-gray-400 mb-1">Plan</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {billingStatus.status === 'active' ? 'Pro — $20 AUD / month' : 'Free'}
+                  </p>
+                  {billingStatus.status === 'past_due' && (
+                    <p className="text-xs text-red-500 mt-1">Payment failed — please update your payment method.</p>
+                  )}
+                </div>
+                {billingStatus.status === 'active' || billingStatus.status === 'past_due' ? (
+                  <button onClick={handleManageBilling}
+                    className="text-sm px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                    Manage subscription
+                  </button>
+                ) : (
+                  <button onClick={handleUpgrade} disabled={upgradeLoading}
+                    className="text-sm px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50">
+                    {upgradeLoading ? 'Loading…' : 'Upgrade — $20/mo'}
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div className="h-full bg-gray-900 rounded-full transition-all"
+                    style={{ width: `${Math.min((billingStatus.member_count / billingStatus.limit) * 100, 100)}%` }} />
+                </div>
+                <p className="text-xs text-gray-500 whitespace-nowrap">
+                  {billingStatus.member_count} / {billingStatus.limit} members
+                  {billingStatus.status !== 'active' && billingStatus.member_count >= billingStatus.limit && ' — limit reached'}
+                </p>
+              </div>
+            </div>
+          )}
+          <FinanceReportPage />
+        </>
+      )}
 
       {/* ── Articles Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'Articles' && <ArticlesManager />}
@@ -6542,6 +6612,28 @@ const [sessionForm,      setSessionForm]      = useState({
       })()}
 
       <FeedbackButton page="admin" />
+
+      {/* Upgrade modal */}
+      {showUpgradeModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-7 text-center">
+            <div className="text-4xl mb-4">🚀</div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Free plan limit reached</h2>
+            <p className="text-sm text-gray-500 mb-1">You've reached the 25-member free limit.</p>
+            <p className="text-sm text-gray-500 mb-6">Upgrade to Pro to add unlimited members.</p>
+            <div className="space-y-2.5">
+              <button onClick={handleUpgrade} disabled={upgradeLoading}
+                className="w-full bg-gray-900 text-white py-3 rounded-xl text-sm font-medium hover:bg-black transition-colors disabled:opacity-50">
+                {upgradeLoading ? 'Loading…' : 'Upgrade — $20 AUD / month'}
+              </button>
+              <button onClick={() => setShowUpgradeModal(false)}
+                className="w-full py-3 text-sm text-gray-400 hover:text-gray-700 transition-colors">
+                Not now
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
