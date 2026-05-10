@@ -2191,7 +2191,7 @@ const [sessionForm,      setSessionForm]      = useState({
       )}
 
       {/* Tabs — desktop only */}
-      <div className="hidden lg:flex border-b border-gray-200 mb-6 gap-1">
+      <div className="hidden lg:flex items-center border-b border-gray-200 mb-6 gap-1">
         {tabOrder.map((tabIdx, displayIdx) => {
           const tab = TABS[tabIdx]
           const isActive   = activeTab === tab
@@ -2217,6 +2217,13 @@ const [sessionForm,      setSessionForm]      = useState({
             </button>
           )
         })}
+        <div className="flex-1" />
+        <button
+          onClick={() => { localStorage.removeItem('token'); window.location.href = '/' }}
+          className="mb-px px-3 py-1.5 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Log out
+        </button>
       </div>
 
       {/* Mobile tab label */}
