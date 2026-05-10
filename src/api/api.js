@@ -393,4 +393,8 @@ export const aiAPI = {
   chat: (message, history) => api.post('/ai/chat', { message, history }, { timeout: 60_000 }),
 }
 
+export const feedbackAPI = {
+  submit: (data) => api.post('/feedback', data),
+}
+
 export default api;

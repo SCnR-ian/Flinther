@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
+import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
 import { Camera, Plus, Trash2 } from 'lucide-react'
 import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI } from '@/api/api'
@@ -6540,7 +6541,7 @@ const [sessionForm,      setSessionForm]      = useState({
         )
       })()}
 
-    
-      </div>
+      <FeedbackButton page="admin" />
+    </div>
   )
 }

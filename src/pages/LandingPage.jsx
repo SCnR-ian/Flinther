@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import FeedbackButton from "@/components/common/FeedbackButton";
 
 function useInView(threshold = 0.15) {
   const ref = useRef(null);
@@ -465,6 +466,8 @@ export default function LandingPage() {
           </a>
         </Reveal>
       </section>
+
+      <FeedbackButton page="landing" />
 
       {/* Footer */}
       <footer className="border-t border-gray-100 py-8 px-6">
