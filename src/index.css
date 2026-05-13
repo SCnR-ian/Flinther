@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { --build: 2; }
+:root { --flinther-build: "v3"; color-scheme: light; }
 
 @layer base {
   *,
