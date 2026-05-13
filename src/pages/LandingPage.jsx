@@ -246,10 +246,20 @@ function Screenshots() {
 export default function LandingPage() {
   const [lang, setLang] = useState("en");
   const [loggedIn, setLoggedIn] = useState(false);
+  const [dashboardHref, setDashboardHref] = useState("/dashboard");
   const c = C[lang];
 
   useEffect(() => {
-    setLoggedIn(!!localStorage.getItem("token"));
+    const token = localStorage.getItem("token");
+    setLoggedIn(!!token);
+    if (token) {
+      try {
+        const user = JSON.parse(localStorage.getItem("user") || "null");
+        if (user?.role === "coach") setDashboardHref("/coach");
+        else if (user?.role === "admin" || user?.platform_owner) setDashboardHref("/admin");
+        else setDashboardHref("/dashboard");
+      } catch { /* ignore */ }
+    }
   }, []);
 
   const handleLogout = () => {
@@ -280,7 +290,7 @@ export default function LandingPage() {
             </button>
             {loggedIn ? (
               <>
-                <a href="/dashboard" className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition-colors">
+                <a href={dashboardHref} className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition-colors">
                   {c.nav.dashboard}
                 </a>
                 <button
