@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
-import { Camera, Plus, Trash2 } from 'lucide-react'
+import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, BarChart2, LogOut, QrCode, ShoppingBag, FileText } from 'lucide-react'
 import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI } from '@/api/api'
 import ShopManager       from './ShopManager'
 import FinanceReportPage from './FinanceReportPage'
@@ -128,6 +128,13 @@ function groupByWeek(sessions) {
 
 
 const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Finance']
+const TAB_ICONS = {
+  'Bookings':    <Calendar    className="w-4 h-4 shrink-0" />,
+  'Members':     <Users       className="w-4 h-4 shrink-0" />,
+  'Coaching':    <Dumbbell    className="w-4 h-4 shrink-0" />,
+  'Social Play': <PlayCircle  className="w-4 h-4 shrink-0" />,
+  'Finance':     <BarChart2   className="w-4 h-4 shrink-0" />,
+}
 
 // Height in px of each 30-minute slot row in the calendar view.
 const SLOT_H = 48
@@ -2178,12 +2185,55 @@ const [sessionForm,      setSessionForm]      = useState({
   }
 
   return (
-    <div className="page-wrapper py-8 px-4 pb-28 max-w-7xl mx-auto">
+    <>
+      {/* Sidebar — desktop only */}
+      <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 z-40">
+        <div className="px-5 h-14 flex items-center border-b border-gray-100 shrink-0">
+          <span className="font-semibold text-sm text-gray-900">Admin</span>
+        </div>
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+          {TABS.map(tab => (
+            <button key={tab} onClick={() => setActiveTab(tab)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm transition-colors ${
+                activeTab === tab
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
+              }`}
+            >
+              {TAB_ICONS[tab]}
+              {tab}
+            </button>
+          ))}
+        </nav>
+        {todayCoachSummary.length > 0 && (
+          <div className="px-3 py-3 border-t border-gray-100 shrink-0">
+            <p className="text-[10px] text-gray-400 uppercase tracking-widest mb-2 px-2">Today</p>
+            <div className="space-y-1">
+              {todayCoachSummary.map(coach => (
+                <div key={coach.id} className="px-3 py-1.5 rounded-lg bg-gray-50 flex items-center justify-between">
+                  <span className="text-xs text-gray-700 truncate">{coach.name}</span>
+                  <span className="text-xs font-mono text-emerald-600 ml-2">{coach.sessions.length}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        <div className="px-3 py-3 border-t border-gray-100 shrink-0">
+          <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/' }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+          >
+            <LogOut className="w-4 h-4 shrink-0" />
+            Log out
+          </button>
+        </div>
+      </aside>
+
+    <div className="lg:pl-56 py-8 px-4 pb-28">
 
 
-      {/* Today's coaching — per-coach session count with hover tooltip */}
+      {/* Today's coaching — per-coach session count with hover tooltip (mobile only; desktop shows in sidebar) */}
       {todayCoachSummary.length > 0 && (
-        <div className="mb-8">
+        <div className="mb-8 lg:hidden">
           <p className="text-[10px] text-gray-800 uppercase tracking-widest mb-3">
             Today's Coaching
           </p>
@@ -2220,41 +2270,6 @@ const [sessionForm,      setSessionForm]      = useState({
         </div>
       )}
 
-      {/* Tabs — desktop only */}
-      <div className="hidden lg:flex items-center border-b border-gray-200 mb-6 gap-1">
-        {tabOrder.map((tabIdx, displayIdx) => {
-          const tab = TABS[tabIdx]
-          const isActive   = activeTab === tab
-          const isDragOver = dragTabOverIdx === displayIdx && dragTabIdx !== displayIdx
-          return (
-            <button
-              key={tab}
-              draggable
-              onDragStart={e => handleTabDragStart(e, displayIdx)}
-              onDragOver={e => handleTabDragOver(e, displayIdx)}
-              onDrop={e => handleTabDrop(e, displayIdx)}
-              onDragEnd={handleTabDragEnd}
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-all select-none cursor-pointer ${
-                isActive
-                  ? 'border-black text-black'
-                  : isDragOver
-                    ? 'border-gray-400 text-gray-600 opacity-50'
-                    : 'border-transparent text-gray-500 hover:text-gray-900'
-              } ${dragTabIdx === displayIdx ? 'opacity-40' : ''}`}
-            >
-              {tab}
-            </button>
-          )
-        })}
-        <div className="flex-1" />
-        <button
-          onClick={() => { localStorage.removeItem('token'); window.location.href = '/' }}
-          className="mb-px px-3 py-1.5 text-xs text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          Log out
-        </button>
-      </div>
 
       {/* Mobile tab label */}
       <div className="lg:hidden mb-4">
@@ -3520,9 +3535,6 @@ const [sessionForm,      setSessionForm]      = useState({
                                     className="font-medium text-gray-900 hover:text-blue-700 transition-colors text-left text-sm"
                                   >{s.student_name}</button>
                                 </div>
-                                {bal !== undefined && (
-                                  <span className={`text-[11px] font-mono ${bal < 0 ? 'text-red-600' : bal < 70 ? 'text-amber-600' : 'text-emerald-600'}`}>${bal.toFixed(0)}</span>
-                                )}
                               </td>
                               <td className="px-3 py-3">
                                 <button onClick={() => { const ci = coaches.find(c => c.id === s.coach_id); setCoachViewModal({ coach_id: s.coach_id, coach_name: s.coach_name, email: ci?.email, phone: ci?.phone }); setCoachViewExpanded(new Set()); setCoachViewSelectedDate({}); setCoachSeriesExpanded(new Set()) }}
@@ -3616,7 +3628,6 @@ const [sessionForm,      setSessionForm]      = useState({
                                         >→ 1:1</button>
                                       )}
                                     </div>
-                                    {bal !== undefined && <span className={`text-[11px] font-mono ${bal < 0 ? 'text-red-600' : bal < 50 ? 'text-amber-600' : 'text-emerald-600'}`}>${bal.toFixed(0)}</span>}
                                   </div>
                                 ))}
                               </div>
@@ -6635,5 +6646,6 @@ const [sessionForm,      setSessionForm]      = useState({
         </div>
       )}
     </div>
+    </>
   )
 }
