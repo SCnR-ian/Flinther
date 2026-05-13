@@ -72,6 +72,7 @@ export const authAPI = {
   getSSOToken:    ()      => api.post('/auth/sso-token'),
   verifySSOToken: (token) => api.get(`/auth/sso-callback?token=${token}`),
   verifyEmail:    (token) => api.get(`/auth/verify-email?token=${token}`),
+  getInviteInfo:  (token) => api.get(`/auth/invite-info?token=${token}`),
 };
 
 // ---------------------------------------------------------------------------
@@ -129,6 +130,7 @@ export const adminAPI = {
   makeCoach: (id, formData) => api.post(`/admin/members/${id}/make-coach`, formData),
   getCoachResume: (coachId) => `${api.defaults.baseURL}/admin/coaches/${coachId}/resume`,
   getMemberActivities: (id) => api.get(`/admin/members/${id}/activities`),
+  createInvite: () => api.post('/admin/invites'),
 };
 
 // ---------------------------------------------------------------------------
