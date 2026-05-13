@@ -113,7 +113,7 @@ export function AuthProvider({ children }) {
 
   // ---- derived state -----------------------------------------------------
   const isAuthenticated = Boolean(token && user)
-  const isAdmin         = user?.role === 'admin'
+  const isAdmin         = user?.role === 'admin' || user?.platform_owner === true
 
   return (
     <AuthContext.Provider value={{
