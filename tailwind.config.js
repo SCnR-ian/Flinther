@@ -1,7 +1,7 @@
 /** @type {import('tailwindcss').Config} */
 export default {
   content: ['./index.html', './src/**/*.{js,jsx}'],
-  safelist: ['flinther-v3'],
+  safelist: ['text-[#f1f2f3]'],
   theme: {
     extend: {
       colors: {
