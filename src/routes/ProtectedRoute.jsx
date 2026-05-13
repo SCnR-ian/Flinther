@@ -32,3 +32,16 @@ export function AdminRoute({ children }) {
   if (!isAdmin)          return <Navigate to="/dashboard" replace />
   return children
 }
+
+// ---------------------------------------------------------------------------
+// CoachRoute – requires coach role
+// ---------------------------------------------------------------------------
+export function CoachRoute({ children }) {
+  const { isAuthenticated, user, loading } = useAuth()
+  const location = useLocation()
+
+  if (loading)                       return <Spinner />
+  if (!isAuthenticated)              return <Navigate to="/login" state={{ from: location }} replace />
+  if (user?.role !== 'coach')        return <Navigate to="/dashboard" replace />
+  return children
+}

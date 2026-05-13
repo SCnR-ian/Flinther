@@ -32,7 +32,7 @@ export default function LoginPage() {
     if (Object.keys(v).length) { setErrors(v); return }
     const result = await login(form)
     if (result.success) {
-      const dest = result.user?.role === 'coach' ? '/dashboard' : from
+      const dest = result.user?.role === 'coach' ? '/coach' : from
       navigate(dest, { replace: true })
     }
   }
