@@ -53,7 +53,7 @@ export default function OnboardingPage() {
     }
   }
 
-  const canSubmit = name.trim() && subdomain.trim() && courts >= 1
+  const canSubmit = name.trim() && courts >= 1
 
   return (
     <div className="min-h-screen bg-[#fafafa] flex flex-col" style={{ fontFamily: '"DM Sans", sans-serif' }}>
@@ -74,28 +74,14 @@ export default function OnboardingPage() {
           </div>
 
           {/* Club name */}
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Club name</label>
-              <input
-                className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-400 bg-white"
-                placeholder="Apex Table Tennis"
-                value={name}
-                onChange={e => handleNameChange(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Club URL</label>
-              <div className="flex items-center border border-gray-200 rounded-xl bg-white overflow-hidden focus-within:border-gray-400">
-                <span className="px-4 py-3 text-sm text-gray-400 bg-gray-50 border-r border-gray-200 shrink-0">flinther.com/</span>
-                <input
-                  className="flex-1 px-4 py-3 text-sm focus:outline-none bg-white"
-                  placeholder="apex"
-                  value={subdomain}
-                  onChange={e => setSubdomain(slugify(e.target.value))}
-                />
-              </div>
-            </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Club name</label>
+            <input
+              className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-gray-400 bg-white"
+              placeholder="e.g. Riverside Table Tennis Club"
+              value={name}
+              onChange={e => handleNameChange(e.target.value)}
+            />
           </div>
 
           {/* Courts */}
