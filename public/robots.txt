@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /coach
+Disallow: /dashboard
+
+Sitemap: https://flinther.com/sitemap.xml
