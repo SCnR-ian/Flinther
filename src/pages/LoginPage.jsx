@@ -34,6 +34,7 @@ export default function LoginPage() {
     if (result.success) {
       const u = result.user
       const dest = u?.role === 'coach' ? '/coach'
+                 : u?.platform_owner && !u?.club_id ? '/onboarding'
                  : (u?.role === 'admin' || u?.platform_owner) ? '/admin'
                  : from
       navigate(dest, { replace: true })
