@@ -31,12 +31,7 @@ const api = axios.create({
   // 2. ?club= query param (flinther.com/register?club=epping)
   if (!subdomain && typeof window !== 'undefined') {
     const clubParam = new URLSearchParams(window.location.search).get('club')
-    if (clubParam) {
-      subdomain = clubParam
-      sessionStorage.setItem('club_subdomain', clubParam)
-    } else {
-      subdomain = sessionStorage.getItem('club_subdomain')
-    }
+    if (clubParam) subdomain = clubParam
   }
 
   // 3. Build-time env var fallback
