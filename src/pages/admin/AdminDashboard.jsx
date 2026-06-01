@@ -2835,13 +2835,9 @@ const [sessionForm,      setSessionForm]      = useState({
               onChange={e => setSelectedDate(e.target.value)}
               title="Pick any date"
             />
-          </div>
-
-          {/* Member search */}
-          <div className="mb-5">
             <input
               type="text"
-              className="input w-full max-w-xs"
+              className="input flex-shrink-0 text-sm ml-auto"
               placeholder="Search member name…"
               value={memberSearch}
               onChange={e => setMemberSearch(e.target.value)}
