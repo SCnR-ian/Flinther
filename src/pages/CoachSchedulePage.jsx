@@ -32,7 +32,10 @@ export default function CoachSchedulePage() {
   useEffect(() => {
     coachingAPI.getPublicSchedule(coachId)
       .then(({ data }) => setData(data))
-      .catch(() => setError('Schedule not found.'))
+      .catch(err => {
+        const status = err?.response?.status
+        setError(status === 404 ? 'Coach not found.' : `Error loading schedule (${status ?? 'network error'}).`)
+      })
       .finally(() => setLoading(false))
   }, [coachId])
 
