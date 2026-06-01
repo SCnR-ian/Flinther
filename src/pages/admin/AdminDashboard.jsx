@@ -127,13 +127,12 @@ function groupByWeek(sessions) {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 
-const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Finance']
+const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play']
 const TAB_ICONS = {
   'Bookings':    <Calendar    className="w-4 h-4 shrink-0" />,
   'Members':     <Users       className="w-4 h-4 shrink-0" />,
   'Coaching':    <Dumbbell    className="w-4 h-4 shrink-0" />,
   'Social Play': <PlayCircle  className="w-4 h-4 shrink-0" />,
-  'Finance':     <BarChart2   className="w-4 h-4 shrink-0" />,
 }
 
 // Height in px of each 30-minute slot row in the calendar view.
