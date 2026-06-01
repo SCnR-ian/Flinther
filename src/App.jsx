@@ -15,6 +15,7 @@ import DashboardPage      from '@/pages/DashboardPage'
 import AdminDashboard     from '@/pages/admin/AdminDashboard'
 import FinanceReportPage  from '@/pages/admin/FinanceReportPage'
 import CoachPortal        from '@/pages/CoachPortal'
+import DailySchedulePage  from '@/pages/DailySchedulePage'
 
 const router = createBrowserRouter([
   { path: '/',                element: <LandingPage /> },
@@ -29,6 +30,7 @@ const router = createBrowserRouter([
   { path: '/admin',           element: <AdminRoute><AdminDashboard /></AdminRoute> },
   { path: '/admin/finance',   element: <AdminRoute><FinanceReportPage /></AdminRoute> },
   { path: '/coach',           element: <CoachRoute><CoachPortal /></CoachRoute> },
+  { path: '/schedule',        element: <DailySchedulePage /> },
   { path: '/dashboard',       element: <ProtectedRoute><DashboardPage /></ProtectedRoute> },
   { path: '*',                element: <LandingPage /> },
 ])
