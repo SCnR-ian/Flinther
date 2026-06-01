@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
 import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, BarChart2, LogOut, QrCode, ShoppingBag, FileText } from 'lucide-react'
-import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI } from '@/api/api'
+import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
 import ShopManager       from './ShopManager'
 import FinanceReportPage from './FinanceReportPage'
 import QRCode from 'react-qr-code'
@@ -53,13 +53,16 @@ function nextOccurrence(isoDate, targetDow) {
 
 // Returns the next `count` dates that fall on opening days (Mon/Tue/Wed/Sat),
 // starting from today.
-function getUpcomingOpenDates(count = 7) {
-  const OPEN_DOW = new Set([1, 2, 3, 6])
+const DOW_MAP = { Mon:1, Tue:2, Wed:3, Thu:4, Fri:5, Sat:6, Sun:0 }
+
+function getUpcomingOpenDates(count = 7, openDow = null) {
+  // openDow: Set of day-of-week numbers (0=Sun…6=Sat). Default: all days.
+  const allowed = openDow && openDow.size > 0 ? openDow : new Set([0,1,2,3,4,5,6])
   const dates = []
   const d = new Date()
   d.setHours(0, 0, 0, 0)
   while (dates.length < count) {
-    if (OPEN_DOW.has(d.getDay())) dates.push(new Date(d))
+    if (allowed.has(d.getDay())) dates.push(new Date(d))
     d.setDate(d.getDate() + 1)
   }
   return dates
@@ -564,6 +567,7 @@ const [members,      setMembers]      = useState([])
   const [bookingViewSessions,     setBookingViewSessions]     = useState([])
   const [bookingViewSocialSessions, setBookingViewSocialSessions] = useState([])
   const [totalCourts,             setTotalCourts]             = useState(6)
+  const [openDow,                 setOpenDow]                 = useState(null)
   const [adminCheckIns,           setAdminCheckIns]           = useState([]) // { type, reference_id, user_id }
   const [memberSearch,       setMemberSearch]       = useState('')
   const [memberListSearch,   setMemberListSearch]   = useState('')
@@ -719,7 +723,7 @@ const [sessionForm,      setSessionForm]      = useState({
     return dates.length ? toISO(dates[0]) : ''
   })
 
-  const upcomingDates = getUpcomingOpenDates(7)
+  const upcomingDates = getUpcomingOpenDates(7, openDow)
 
   // Derive time slots for the selected date
   const selectedDow = selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() : null
@@ -728,6 +732,10 @@ const [sessionForm,      setSessionForm]      = useState({
   // Fetch today's coaching sessions once on mount
   useEffect(() => {
     billingAPI.status().then(({ data }) => setBillingStatus(data)).catch(() => {})
+    scheduleAPI.getAll().then(({ data }) => {
+      const dow = new Set((data.schedule || []).filter(s => s.is_active).map(s => DOW_MAP[s.day]).filter(d => d !== undefined))
+      if (dow.size > 0) setOpenDow(dow)
+    }).catch(() => {})
   }, [])
 
   useEffect(() => {
