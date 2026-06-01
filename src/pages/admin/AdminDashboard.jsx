@@ -493,7 +493,7 @@ const [members,      setMembers]      = useState([])
   const [memberSearch,       setMemberSearch]       = useState('')
   const [memberListSearch,   setMemberListSearch]   = useState('')
   const [showAddMember,      setShowAddMember]      = useState(false)
-  const [addMemberForm,      setAddMemberForm]      = useState({ name: '', email: '', password: '', phone: '' })
+  const [addMemberForm,      setAddMemberForm]      = useState({ name: '', email: '', phone: '' })
   const [addMemberError,     setAddMemberError]     = useState('')
   const [showUpgradeModal,   setShowUpgradeModal]   = useState(false)
   const [billingStatus,      setBillingStatus]      = useState(null)
@@ -791,7 +791,7 @@ const [sessionForm,      setSessionForm]      = useState({
     try {
       const { data } = await adminAPI.createMember(addMemberForm)
       setMembers(prev => [data.member, ...prev])
-      setAddMemberForm({ name: '', email: '', password: '', phone: '' })
+      setAddMemberForm({ name: '', email: '', phone: '' })
       setShowAddMember(false)
     } catch (err) {
       if (err.response?.status === 402 && err.response?.data?.code === 'BILLING_REQUIRED') {
@@ -2586,8 +2586,6 @@ const [sessionForm,      setSessionForm]      = useState({
                   onChange={e => setAddMemberForm(f => ({ ...f, name: e.target.value }))} required />
                 <input className="input text-sm" type="email" placeholder="Email address *" value={addMemberForm.email}
                   onChange={e => setAddMemberForm(f => ({ ...f, email: e.target.value }))} required />
-                <input className="input text-sm" type="password" placeholder="Password *" value={addMemberForm.password}
-                  onChange={e => setAddMemberForm(f => ({ ...f, password: e.target.value }))} required />
                 <input className="input text-sm" type="tel" placeholder="Phone (optional)" value={addMemberForm.phone}
                   onChange={e => setAddMemberForm(f => ({ ...f, phone: e.target.value }))} />
                 {addMemberError && <p className="sm:col-span-2 text-xs text-red-400">{addMemberError}</p>}
