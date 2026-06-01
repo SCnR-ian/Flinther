@@ -18,6 +18,8 @@ const api = axios.create({
   const PLATFORM = ['vercel.app','netlify.app','onrender.com','railway.app','fly.dev','github.io']
   const hostname = typeof window !== 'undefined' ? window.location.hostname : ''
   let subdomain = null
+
+  // 1. Real subdomain (epping.flinther.com → 'epping')
   if (hostname && hostname !== 'localhost' && !hostname.match(/^\d/)) {
     const isPlatform = PLATFORM.some(d => hostname.endsWith('.' + d) || hostname === d)
     if (!isPlatform) {
@@ -25,6 +27,19 @@ const api = axios.create({
       if (parts.length >= 3) subdomain = parts[0]
     }
   }
+
+  // 2. ?club= query param (flinther.com/register?club=epping)
+  if (!subdomain && typeof window !== 'undefined') {
+    const clubParam = new URLSearchParams(window.location.search).get('club')
+    if (clubParam) {
+      subdomain = clubParam
+      sessionStorage.setItem('club_subdomain', clubParam)
+    } else {
+      subdomain = sessionStorage.getItem('club_subdomain')
+    }
+  }
+
+  // 3. Build-time env var fallback
   subdomain = subdomain || import.meta.env.VITE_CLUB_SUBDOMAIN || null
   api.defaults.headers.common['X-Club-Subdomain'] = subdomain || '_platform'
 })()
