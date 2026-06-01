@@ -1,11 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
-import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, BarChart2, LogOut, QrCode, ShoppingBag, FileText } from 'lucide-react'
-import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, venueAPI, articlesAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
-import ShopManager       from './ShopManager'
-import FinanceReportPage from './FinanceReportPage'
-import QRCode from 'react-qr-code'
+import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings } from 'lucide-react'
+import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
 import { useClub } from '@/context/ClubContext'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
@@ -130,12 +127,13 @@ function groupByWeek(sessions) {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 
-const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play']
+const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Settings']
 const TAB_ICONS = {
   'Bookings':    <Calendar    className="w-4 h-4 shrink-0" />,
   'Members':     <Users       className="w-4 h-4 shrink-0" />,
   'Coaching':    <Dumbbell    className="w-4 h-4 shrink-0" />,
   'Social Play': <PlayCircle  className="w-4 h-4 shrink-0" />,
+  'Settings':    <Settings    className="w-4 h-4 shrink-0" />,
 }
 
 // Height in px of each 30-minute slot row in the calendar view.
@@ -196,331 +194,176 @@ function layoutEvents(events) {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-// ── Articles Manager ──────────────────────────────────────────────────────────
-const ARTICLE_TYPES = ['competition', 'news', 'achievement']
-const TYPE_LABELS   = { competition: 'Competition', news: 'News', achievement: 'Achievement' }
+const DAYS_ORDER = [
+  { key: 'Mon', label: 'Monday'    },
+  { key: 'Tue', label: 'Tuesday'   },
+  { key: 'Wed', label: 'Wednesday' },
+  { key: 'Thu', label: 'Thursday'  },
+  { key: 'Fri', label: 'Friday'    },
+  { key: 'Sat', label: 'Saturday'  },
+  { key: 'Sun', label: 'Sunday'    },
+]
 
-function ArticlesManager() {
-  const [articles, setArticles]   = useState([])
-  const [loading,  setLoading]    = useState(true)
-  const [showForm, setShowForm]   = useState(false)
-  const [editing,  setEditing]    = useState(null) // article being edited
-  const [deleting, setDeleting]   = useState(null)
-  const [saving,   setSaving]     = useState(false)
-  const [filterType, setFilterType] = useState('')
+function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpenDow }) {
+  const [courtsInput,   setCourtsInput]   = useState(String(totalCourts))
+  const [courtsSaving,  setCourtsSaving]  = useState(false)
+  const [dayForms,      setDayForms]      = useState({})
+  const [schedLoading,  setSchedLoading]  = useState(true)
+  const [schedSaving,   setSchedSaving]   = useState(false)
 
-  const emptyForm = { type: 'news', title: '', subtitle: '', body: '', image_data: '', image_type: '', gallery_images: [], is_pinned: false, published_at: new Date().toISOString().slice(0,16) }
-  const [form, setForm] = useState(emptyForm)
-
-  const load = () => {
-    setLoading(true)
-    const params = filterType ? { type: filterType } : {}
-    articlesAPI.getAll(params)
-      .then(r => setArticles(r.data.articles))
+  useEffect(() => {
+    setSchedLoading(true)
+    scheduleAPI.getAdmin()
+      .then(({ data }) => {
+        const entries = data.schedule || []
+        const forms = {}
+        for (const day of DAYS_ORDER) {
+          const e = entries.find(s => s.day === day.key)
+          forms[day.key] = e
+            ? { id: e.id, is_active: e.is_active ?? true, start_time: (e.start_time || '09:00').slice(0, 5), end_time: (e.end_time || '22:00').slice(0, 5) }
+            : { id: null, is_active: false, start_time: '09:00', end_time: '22:00' }
+        }
+        setDayForms(forms)
+      })
       .catch(() => {})
-      .finally(() => setLoading(false))
-  }
-  useEffect(load, [filterType])
+      .finally(() => setSchedLoading(false))
+  }, [])
 
-  const openNew  = () => { setForm(emptyForm); setEditing(null); setShowForm(true) }
-  const openEdit = (a) => {
-    setForm({ type: a.type, title: a.title, subtitle: a.subtitle||'', body: a.body||'',
-              image_data: a.image_data||'', image_type: a.image_type||'',
-              gallery_images: a.gallery_images || [],
-              is_pinned: a.is_pinned, published_at: new Date(a.published_at).toISOString().slice(0,16) })
-    setEditing(a)
-    setShowForm(true)
-  }
-
-  const handleImage = (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => setForm(f => ({ ...f, image_data: ev.target.result, image_type: file.type }))
-    reader.readAsDataURL(file)
-  }
-
-  const handleGalleryImage = (e, idx) => {
-    const file = e.target.files[0]
-    if (!file) return
-    const reader = new FileReader()
-    reader.onload = ev => setForm(f => {
-      const updated = [...f.gallery_images]
-      if (idx === updated.length) updated.push({ data: ev.target.result, type: file.type })
-      else updated[idx] = { data: ev.target.result, type: file.type }
-      return { ...f, gallery_images: updated }
-    })
-    reader.readAsDataURL(file)
-  }
-
-  const removeGalleryImage = (idx) => setForm(f => ({
-    ...f, gallery_images: f.gallery_images.filter((_, i) => i !== idx)
-  }))
-
-  const handleSave = async () => {
-    if (!form.title.trim()) return alert('Title is required.')
-    setSaving(true)
+  const saveCourts = async () => {
+    const n = parseInt(courtsInput)
+    if (isNaN(n) || n < 1) return alert('Enter a valid number.')
+    setCourtsSaving(true)
     try {
-      const payload = { ...form, published_at: new Date(form.published_at).toISOString() }
-      if (editing) await articlesAPI.update(editing.id, payload)
-      else         await articlesAPI.create(payload)
-      setShowForm(false)
-      load()
-    } catch (e) {
-      alert(e.response?.data?.message ?? 'Error saving article.')
-    } finally { setSaving(false) }
-  }
-
-  const handleDelete = async (id) => {
-    try {
-      await articlesAPI.delete(id)
-      setDeleting(null)
-      load()
-    } catch { alert('Could not delete.') }
-  }
-
-  return (
-    <div className="p-4 sm:p-6 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="text-lg font-semibold text-gray-900">Articles</h2>
-        <button onClick={openNew}
-          className="flex items-center gap-1.5 bg-black text-white text-sm px-4 py-2 rounded-full hover:bg-gray-800 transition-colors">
-          <Plus className="w-4 h-4" /> New Article
-        </button>
-      </div>
-
-      {/* Filter */}
-      <div className="flex gap-2 mb-5 flex-wrap">
-        {[{key:'',label:'All'}, ...ARTICLE_TYPES.map(t=>({key:t,label:TYPE_LABELS[t]}))].map(t => (
-          <button key={t.key} onClick={() => setFilterType(t.key)}
-            className={`px-3 py-1 rounded-full text-sm border transition-colors ${filterType===t.key ? 'bg-black text-white border-black' : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16"><div className="w-6 h-6 border-2 border-gray-200 border-t-black rounded-full animate-spin" /></div>
-      ) : articles.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 text-sm">No articles yet. Click "New Article" to add one.</div>
-      ) : (
-        <div className="space-y-3">
-          {articles.map(a => (
-            <div key={a.id} className="flex gap-4 items-start bg-white border border-gray-200 rounded-xl p-4">
-              {a.image_data && (
-                <img src={a.image_data} alt="" className="w-20 h-14 object-cover rounded-lg shrink-0" />
-              )}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full ${
-                    a.type==='competition' ? 'bg-blue-100 text-blue-700' :
-                    a.type==='achievement' ? 'bg-amber-100 text-amber-700' :
-                    'bg-green-100 text-green-700'}`}>
-                    {TYPE_LABELS[a.type]}
-                  </span>
-                  {a.is_pinned && <span className="text-[10px] text-gray-400">📌 Pinned</span>}
-                </div>
-                <p className="font-medium text-gray-900 truncate">{a.title}</p>
-                {a.subtitle && <p className="text-sm text-gray-500 truncate">{a.subtitle}</p>}
-                <p className="text-xs text-gray-400 mt-0.5">
-                  {new Date(a.published_at).toLocaleDateString('en-AU', {day:'numeric',month:'short',year:'numeric'})}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button onClick={() => openEdit(a)}
-                  className="text-xs text-gray-500 hover:text-black border border-gray-200 rounded-lg px-3 py-1.5 transition-colors">Edit</button>
-                <button onClick={() => setDeleting(a.id)}
-                  className="text-xs text-red-500 hover:text-red-700 border border-red-200 rounded-lg px-3 py-1.5 transition-colors">Delete</button>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Form modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
-             onClick={e => { if (e.target===e.currentTarget) setShowForm(false) }}>
-          <div className="bg-white rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto p-6 space-y-4">
-            <h3 className="text-base font-semibold">{editing ? 'Edit Article' : 'New Article'}</h3>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Type</label>
-                <select className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  value={form.type} onChange={e => setForm(f=>({...f,type:e.target.value}))}>
-                  {ARTICLE_TYPES.map(t => <option key={t} value={t}>{TYPE_LABELS[t]}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className="block text-xs text-gray-500 mb-1">Date</label>
-                <input type="datetime-local" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                  value={form.published_at} onChange={e => setForm(f=>({...f,published_at:e.target.value}))} />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Title *</label>
-              <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                placeholder="Article title" value={form.title} onChange={e => setForm(f=>({...f,title:e.target.value}))} />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Subtitle</label>
-              <input type="text" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
-                placeholder="Short description" value={form.subtitle} onChange={e => setForm(f=>({...f,subtitle:e.target.value}))} />
-            </div>
-            <div>
-              <label className="block text-xs text-gray-500 mb-1">Body</label>
-              <textarea rows={6} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none"
-                placeholder="Full article content…" value={form.body} onChange={e => setForm(f=>({...f,body:e.target.value}))} />
-            </div>
-
-            {/* Images — cover + up to 5 gallery (6 total) */}
-            <div>
-              <label className="block text-xs text-gray-500 mb-2">Photos <span className="text-gray-400">(max 6)</span></label>
-              <div className="grid grid-cols-3 gap-2">
-                {/* Slot 0 — cover */}
-                <div className="relative aspect-square">
-                  {form.image_data ? (
-                    <>
-                      <img src={form.image_data} alt="" className="w-full h-full object-cover rounded-lg" />
-                      <button onClick={() => setForm(f=>({...f,image_data:'',image_type:''}))}
-                        className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                      <span className="absolute bottom-1 left-1 text-[9px] bg-black/50 text-white rounded px-1">Cover</span>
-                    </>
-                  ) : (
-                    <label className="flex flex-col items-center justify-center w-full h-full border-2 border-dashed border-gray-200 rounded-lg cursor-pointer hover:border-gray-400 transition-colors">
-                      <Camera className="w-5 h-5 text-gray-300 mb-1" />
-                      <span className="text-[10px] text-gray-400">Cover</span>
-                      <input type="file" accept="image/*" className="hidden" onChange={handleImage} />
-                    </label>
-                  )}
-                </div>
-                {/* Slots 1–5 — gallery */}
-                {Array.from({ length: 5 }).map((_, i) => {
-                  const img = form.gallery_images[i]
-                  const canAdd = !img && form.gallery_images.length === i && (form.image_data || i > 0 ? true : false)
-                  return (
-                    <div key={i} className="relative aspect-square">
-                      {img ? (
-                        <>
-                          <img src={img.data} alt="" className="w-full h-full object-cover rounded-lg" />
-                          <button onClick={() => removeGalleryImage(i)}
-                            className="absolute top-1 right-1 bg-black/60 text-white rounded-full p-0.5 hover:bg-black">
-                            <Trash2 className="w-3 h-3" />
-                          </button>
-                        </>
-                      ) : (
-                        <label className={`flex flex-col items-center justify-center w-full h-full border-2 border-dashed rounded-lg transition-colors ${
-                          form.gallery_images.length >= i ? 'border-gray-200 cursor-pointer hover:border-gray-400' : 'border-gray-100 opacity-30 pointer-events-none'
-                        }`}>
-                          <span className="text-xl text-gray-300">+</span>
-                          <input type="file" accept="image/*" className="hidden"
-                            onChange={e => handleGalleryImage(e, i)} />
-                        </label>
-                      )}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
-
-            <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-              <input type="checkbox" className="w-4 h-4 rounded"
-                checked={form.is_pinned} onChange={e => setForm(f=>({...f,is_pinned:e.target.checked}))} />
-              <span className="text-gray-700">Pin to top (shown as hero)</span>
-            </label>
-
-            <div className="flex gap-2 pt-2">
-              <button onClick={() => setShowForm(false)}
-                className="flex-1 py-2.5 rounded-full border border-gray-200 text-sm text-gray-600 hover:bg-gray-50">Cancel</button>
-              <button onClick={handleSave} disabled={saving}
-                className="flex-1 py-2.5 rounded-full bg-black text-white text-sm font-medium hover:bg-gray-800 disabled:opacity-50">
-                {saving ? 'Saving…' : (editing ? 'Save Changes' : 'Publish')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Delete confirm */}
-      {deleting && (
-        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full space-y-4">
-            <p className="text-sm text-gray-700">Delete this article? This cannot be undone.</p>
-            <div className="flex gap-2">
-              <button onClick={() => setDeleting(null)}
-                className="flex-1 py-2 rounded-full border border-gray-200 text-sm">Cancel</button>
-              <button onClick={() => handleDelete(deleting)}
-                className="flex-1 py-2 rounded-full bg-red-500 text-white text-sm font-medium hover:bg-red-600">Delete</button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
-  )
-}
-
-
-function ClubLogoSettings() {
-  const { club, setClub } = useClub()
-  const [uploading, setUploading] = useState(false)
-  const [msg, setMsg] = useState('')
-  const inputRef = useRef(null)
-  const apiBase = import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:8000'
-  const logoUrl = club?.settings?.theme?.logoUrl
-  const fullLogoUrl = logoUrl ? (logoUrl.startsWith('http') ? logoUrl : `${apiBase}${logoUrl}`) : null
-
-  const handleFile = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setUploading(true)
-    setMsg('')
-    try {
-      const fd = new FormData()
-      fd.append('logo', file)
-      const r = await clubAPI.uploadLogo(fd)
-      setClub(c => ({ ...c, settings: { ...c.settings, theme: { ...c.settings?.theme, logoUrl: r.data.logoUrl } } }))
-      setMsg('Logo updated.')
+      await courtsAPI.setCount(n)
+      setTotalCourts(n)
     } catch {
-      setMsg('Upload failed.')
+      alert('Could not save courts count.')
     } finally {
-      setUploading(false)
-      e.target.value = ''
+      setCourtsSaving(false)
     }
   }
 
+  const saveSchedule = async () => {
+    setSchedSaving(true)
+    try {
+      const updatedForms = { ...dayForms }
+      for (const day of DAYS_ORDER) {
+        const form = dayForms[day.key]
+        if (!form) continue
+        const payload = { day: day.key, start_time: form.start_time, end_time: form.end_time, is_active: form.is_active }
+        if (form.id) {
+          await scheduleAPI.update(form.id, payload)
+        } else if (form.is_active) {
+          const { data } = await scheduleAPI.create(payload)
+          updatedForms[day.key] = { ...form, id: data.id ?? data.schedule?.id }
+        }
+      }
+      setDayForms(updatedForms)
+      // Refresh parent state
+      const { data } = await scheduleAPI.getAll()
+      const map = {}
+      for (const s of (data.schedule || [])) {
+        if (!s.is_active) continue
+        const d = DOW_MAP[s.day]
+        if (d === undefined) continue
+        const slots = []
+        let mins = toMins((s.start_time || '09:00').slice(0, 5))
+        const end  = toMins((s.end_time   || '22:00').slice(0, 5))
+        while (mins < end) {
+          slots.push(`${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`)
+          mins += 30
+        }
+        map[d] = slots
+      }
+      setClubScheduleMap(map)
+      setOpenDow(new Set(Object.keys(map).map(Number)))
+    } catch {
+      alert('Could not save schedule.')
+    } finally {
+      setSchedSaving(false)
+    }
+  }
+
+  const setDay = (key, patch) => setDayForms(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
+
   return (
-    <div className="p-6 max-w-md">
-      <h2 className="text-lg font-medium mb-6">Club Logo</h2>
-      <div className="flex items-center gap-5 mb-6">
-        {fullLogoUrl ? (
-          <img src={fullLogoUrl} alt="Club logo" className="w-20 h-20 object-contain rounded-xl border border-gray-200" />
-        ) : (
-          <div className="w-20 h-20 rounded-xl border-2 border-dashed border-gray-200 flex items-center justify-center text-gray-300 text-xs">No logo</div>
-        )}
-        <div>
-          <button
-            onClick={() => inputRef.current?.click()}
-            disabled={uploading}
-            className="px-4 py-2 bg-gray-900 text-white text-sm rounded-lg hover:bg-gray-700 disabled:opacity-50 transition-colors"
-          >
-            {uploading ? 'Uploading…' : fullLogoUrl ? 'Replace logo' : 'Upload logo'}
+    <div className="p-4 sm:p-6 max-w-xl mx-auto space-y-8 animate-fade-in">
+
+      {/* Courts */}
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Number of Courts</h2>
+        <div className="bg-white border border-gray-200 rounded-2xl p-5 flex items-center gap-4">
+          <input
+            type="number" min="1" max="30"
+            value={courtsInput}
+            onChange={e => setCourtsInput(e.target.value)}
+            className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center"
+          />
+          <span className="text-sm text-gray-500 flex-1">courts available for booking</span>
+          <button onClick={saveCourts} disabled={courtsSaving}
+            className="text-sm px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
+            {courtsSaving ? 'Saving…' : 'Save'}
           </button>
-          <p className="text-xs text-gray-400 mt-1.5">PNG or JPG, max 5 MB</p>
-          {msg && <p className="text-xs text-green-600 mt-1">{msg}</p>}
         </div>
-      </div>
-      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </section>
+
+      {/* Schedule */}
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 mb-3">Opening Hours</h2>
+        {schedLoading ? (
+          <div className="flex justify-center py-10">
+            <div className="w-5 h-5 border-2 border-gray-200 border-t-black rounded-full animate-spin" />
+          </div>
+        ) : (
+          <>
+            <div className="bg-white border border-gray-200 rounded-2xl divide-y divide-gray-100">
+              {DAYS_ORDER.map(day => {
+                const form = dayForms[day.key] || { is_active: false, start_time: '09:00', end_time: '22:00' }
+                return (
+                  <div key={day.key} className="flex items-center gap-3 px-5 py-3.5">
+                    <input type="checkbox"
+                      checked={form.is_active}
+                      onChange={e => setDay(day.key, { is_active: e.target.checked })}
+                      className="w-4 h-4 accent-gray-900 shrink-0"
+                    />
+                    <span className={`w-24 text-sm shrink-0 ${form.is_active ? 'text-gray-900 font-medium' : 'text-gray-400'}`}>
+                      {day.label}
+                    </span>
+                    <div className="flex items-center gap-2 ml-auto">
+                      <input type="time"
+                        value={form.start_time}
+                        disabled={!form.is_active}
+                        onChange={e => setDay(day.key, { start_time: e.target.value })}
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm disabled:opacity-30"
+                      />
+                      <span className="text-gray-400 text-xs">–</span>
+                      <input type="time"
+                        value={form.end_time}
+                        disabled={!form.is_active}
+                        onChange={e => setDay(day.key, { end_time: e.target.value })}
+                        className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm disabled:opacity-30"
+                      />
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+            <div className="mt-4 flex justify-end">
+              <button onClick={saveSchedule} disabled={schedSaving}
+                className="text-sm px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
+                {schedSaving ? 'Saving…' : 'Save Hours'}
+              </button>
+            </div>
+          </>
+        )}
+      </section>
+
     </div>
   )
 }
 
 export default function AdminDashboard() {
   const [activeTab,    setActiveTab]    = useState('Bookings')
-  const [showMoreMenu, setShowMoreMenu] = useState(false)
   const [tabOrder, setTabOrder] = useState(() => {
     try {
       const saved = localStorage.getItem('admin_tab_order')
@@ -1154,23 +997,6 @@ const [sessionForm,      setSessionForm]      = useState({
     loadTodaySummary(todayDate)
   }, [activeTab, todayDate])
 
-  useEffect(() => {
-    if (activeTab !== 'QR-Code') return
-    // Load QR once
-    if (!venueQR) {
-      setVenueQRLoading(true)
-      venueAPI.getQR()
-        .then(({ data }) => setVenueQR(data))
-        .catch(() => {})
-        .finally(() => setVenueQRLoading(false))
-    }
-    // Load today's check-ins
-    setVenueLoading(true)
-    venueAPI.getToday(venueDate)
-      .then(({ data }) => setVenueCheckins(data.checkins ?? []))
-      .catch(() => {})
-      .finally(() => setVenueLoading(false))
-  }, [activeTab, venueDate]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateSocialSession = async () => {
     const { title, description, num_courts, date, start_time, end_time, max_players, weeks, price_cents } = socialForm
@@ -2331,48 +2157,10 @@ const [sessionForm,      setSessionForm]      = useState({
       {/* ── Fixed bottom nav — mobile only (rendered via portal to avoid z-index trapping) ── */}
       {createPortal(
         <nav className="lg:hidden fixed bottom-0 inset-x-0 z-[9999] bg-white border-t border-gray-200 shadow-[0_-2px_12px_rgba(0,0,0,0.08)] safe-area-pb">
-        {/* More drawer */}
-        {showMoreMenu && (
-          <>
-            <div className="fixed inset-0 z-30" onClick={() => setShowMoreMenu(false)} />
-            <div className="absolute bottom-full inset-x-0 bg-white border-t border-gray-200 shadow-2xl z-40">
-              <div className="grid grid-cols-4 divide-x divide-gray-100">
-                {['QR-Code', 'Shop', 'Articles'].map(tab => (
-                  <button
-                    key={tab}
-                    onClick={() => { setActiveTab(tab); setShowMoreMenu(false) }}
-                    className={`py-5 flex flex-col items-center gap-1 text-[11px] tracking-wide transition-colors ${
-                      activeTab === tab ? 'text-black font-semibold bg-gray-50' : 'text-gray-500'
-                    }`}
-                  >
-                    {tab === 'QR-Code' && (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 013.75 9.375v-4.5zM3.75 14.625c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5a1.125 1.125 0 01-1.125-1.125v-4.5zM13.5 4.875c0-.621.504-1.125 1.125-1.125h4.5c.621 0 1.125.504 1.125 1.125v4.5c0 .621-.504 1.125-1.125 1.125h-4.5A1.125 1.125 0 0113.5 9.375v-4.5z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 6.75h.75v.75h-.75v-.75zM6.75 16.5h.75v.75h-.75v-.75zM16.5 6.75h.75v.75h-.75v-.75zM13.5 13.5h.75v.75h-.75v-.75zM13.5 19.5h.75v.75h-.75v-.75zM19.5 13.5h.75v.75h-.75v-.75zM19.5 19.5h.75v.75h-.75v-.75zM16.5 16.5h.75v.75h-.75v-.75z" />
-                      </svg>
-                    )}
-                    {tab === 'Shop' && (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993l1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007zM8.625 10.5a.375.375 0 11-.75 0 .375.375 0 01.75 0zm7.5 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-                      </svg>
-                    )}
-                    {tab === 'Articles' && (
-                      <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 7.5h1.5m-1.5 3h1.5m-7.5 3h7.5m-7.5 3h7.5m3-9h3.375c.621 0 1.125.504 1.125 1.125V18a2.25 2.25 0 01-2.25 2.25M16.5 7.5V18a2.25 2.25 0 002.25 2.25M16.5 7.5V4.875c0-.621-.504-1.125-1.125-1.125H4.125C3.504 3.75 3 4.254 3 4.875V18a2.25 2.25 0 002.25 2.25h13.5M6 7.5h3v3H6v-3z" />
-                      </svg>
-                    )}
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-          </>
-        )}
-
         <div className="grid grid-cols-5 h-20">
           {/* Bookings */}
           <button
-            onClick={() => { setActiveTab('Bookings'); setShowMoreMenu(false) }}
+            onClick={() => setActiveTab('Bookings')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${activeTab === 'Bookings' ? 'text-black' : 'text-gray-400'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -2383,7 +2171,7 @@ const [sessionForm,      setSessionForm]      = useState({
 
           {/* Coaching */}
           <button
-            onClick={() => { setActiveTab('Coaching'); setShowMoreMenu(false) }}
+            onClick={() => setActiveTab('Coaching')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${activeTab === 'Coaching' ? 'text-black' : 'text-gray-400'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -2394,7 +2182,7 @@ const [sessionForm,      setSessionForm]      = useState({
 
           {/* Social Play */}
           <button
-            onClick={() => { setActiveTab('Social Play'); setShowMoreMenu(false) }}
+            onClick={() => setActiveTab('Social Play')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${activeTab === 'Social Play' ? 'text-black' : 'text-gray-400'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -2405,7 +2193,7 @@ const [sessionForm,      setSessionForm]      = useState({
 
           {/* Members */}
           <button
-            onClick={() => { setActiveTab('Members'); setShowMoreMenu(false) }}
+            onClick={() => setActiveTab('Members')}
             className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${activeTab === 'Members' ? 'text-black' : 'text-gray-400'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
@@ -2414,15 +2202,16 @@ const [sessionForm,      setSessionForm]      = useState({
             <span className="text-[11px] font-medium tracking-wide">Members</span>
           </button>
 
-          {/* More */}
+          {/* Settings */}
           <button
-            onClick={() => setShowMoreMenu(v => !v)}
-            className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${['QR-Code','Shop','Articles'].includes(activeTab) ? 'text-black' : showMoreMenu ? 'text-black' : 'text-gray-400'}`}
+            onClick={() => setActiveTab('Settings')}
+            className={`flex flex-col items-center justify-center gap-1.5 transition-colors ${activeTab === 'Settings' ? 'text-black' : 'text-gray-400'}`}
           >
             <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={1.5} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
             </svg>
-            <span className="text-[11px] font-medium tracking-wide">More</span>
+            <span className="text-[11px] font-medium tracking-wide">Settings</span>
           </button>
         </div>
       </nav>,
@@ -4643,199 +4432,16 @@ const [sessionForm,      setSessionForm]      = useState({
         </div>
       )}
 
-      {/* ── QR-Code tab ──────────────────────────────────────────────────── */}
-      {activeTab === 'QR-Code' && (
-        <div className="animate-fade-in space-y-6">
-
-          {/* QR Code card */}
-          <div className="card p-6">
-            <div className="flex items-start justify-between gap-4 flex-wrap">
-              <div>
-                <h2 className="text-lg font-semibold text-gray-900 mb-1">Sign-In QR Code</h2>
-                <p className="text-sm text-gray-500">Display or print this at the venue entrance. Members scan to sign in or sign out.</p>
-              </div>
-              <div className="flex gap-2 flex-wrap shrink-0">
-                <button
-                  onClick={() => {
-                    const svgEl = document.querySelector('#venue-qr-area svg')
-                    if (!svgEl) return
-                    const clubName = venueQR?.club_name ?? 'TT Club'
-                    const win = window.open('', '_blank')
-                    win.document.write(`<!DOCTYPE html><html><head><title>QR Code — ${clubName}</title>
-                      <style>
-                        body { margin: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: sans-serif; background: #fff; }
-                        .wrap { text-align: center; padding: 40px; }
-                        h1 { font-size: 24px; margin-bottom: 8px; }
-                        p { color: #666; font-size: 14px; margin-top: 16px; }
-                        svg { display: block; margin: 24px auto; }
-                        @media print { button { display: none; } }
-                      </style></head><body>
-                      <div class="wrap">
-                        <h1>${clubName}</h1>
-                        <p style="font-size:13px;color:#999">Scan to sign in / sign out</p>
-                        ${svgEl.outerHTML}
-                        <p>Point your phone camera at this code</p>
-                        <button onclick="window.print()" style="margin-top:20px;padding:10px 24px;font-size:14px;cursor:pointer;border:1px solid #ccc;border-radius:8px;background:#000;color:#fff">Print</button>
-                      </div></body></html>`)
-                    win.document.close()
-                    win.focus()
-                    setTimeout(() => win.print(), 500)
-                  }}
-                  className="btn-primary text-sm px-4 py-2">
-                  🖨 Print QR
-                </button>
-                <button
-                  onClick={() => setVenueRegenConfirm(true)}
-                  className="btn-secondary text-sm px-4 py-2">
-                  Regenerate
-                </button>
-              </div>
-            </div>
-
-            {venueRegenConfirm && (
-              <div className="mt-4 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-center justify-between gap-4">
-                <p className="text-sm text-amber-800">Regenerating will invalidate the current QR code. Any printed copies will stop working.</p>
-                <div className="flex gap-2 shrink-0">
-                  <button className="text-sm text-gray-600 hover:text-gray-900"
-                    onClick={() => setVenueRegenConfirm(false)}>Cancel</button>
-                  <button className="text-sm text-red-600 hover:text-red-700 font-medium"
-                    onClick={async () => {
-                      try {
-                        const { data } = await venueAPI.regenerateQR()
-                        setVenueQR(q => ({ ...q, ...data }))
-                        setVenueRegenConfirm(false)
-                      } catch { alert('Failed to regenerate.') }
-                    }}>Regenerate</button>
-                </div>
-              </div>
-            )}
-
-            <div id="venue-qr-area" className="mt-6 flex justify-center">
-              {venueQRLoading && (
-                <div className="w-8 h-8 border-4 border-gray-200 border-t-black rounded-full animate-spin" />
-              )}
-              {venueQR && (
-                <div className="p-4 bg-white border border-gray-200 rounded-2xl inline-block">
-                  <QRCode value={venueQR.url} size={220} />
-                  <p className="text-center text-xs text-gray-400 mt-3">Scan to sign in / sign out</p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* Today's attendance */}
-          <div className="card p-6">
-            <div className="flex items-center justify-between gap-4 mb-4 flex-wrap">
-              <h2 className="text-lg font-semibold text-gray-900">Attendance</h2>
-              <input type="date" className="input text-sm py-1.5"
-                value={venueDate}
-                onChange={e => setVenueDate(e.target.value)} />
-            </div>
-
-            {venueLoading ? (
-              <div className="flex justify-center py-6">
-                <div className="w-6 h-6 border-4 border-gray-200 border-t-black rounded-full animate-spin" />
-              </div>
-            ) : venueCheckins.length === 0 ? (
-              <p className="text-sm text-gray-500">No sign-ins for this date.</p>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-200">
-                      <th className="text-left py-2 pr-4 text-xs text-gray-500 font-medium">Name</th>
-                      <th className="text-left py-2 pr-4 text-xs text-gray-500 font-medium">Role</th>
-                      <th className="text-left py-2 pr-4 text-xs text-gray-500 font-medium">Signed In</th>
-                      <th className="text-left py-2 pr-4 text-xs text-gray-500 font-medium">Signed Out</th>
-                      <th className="text-left py-2 text-xs text-gray-500 font-medium">Duration</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {venueCheckins.map(row => {
-                      const inTime  = row.checked_in_at  ? new Date(row.checked_in_at).toLocaleTimeString('en-AU',  { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true }) : '—'
-                      const outTime = row.checked_out_at ? new Date(row.checked_out_at).toLocaleTimeString('en-AU', { timeZone: 'Australia/Sydney', hour: 'numeric', minute: '2-digit', hour12: true }) : '—'
-                      const durMs   = row.checked_out_at && row.checked_in_at
-                        ? new Date(row.checked_out_at) - new Date(row.checked_in_at) : null
-                      const dur = durMs ? (() => {
-                        const m = Math.round(durMs / 60000)
-                        const h = Math.floor(m / 60), mm = m % 60
-                        return h ? (mm ? `${h}h ${mm}m` : `${h}h`) : `${mm}m`
-                      })() : (row.checked_in_at ? 'Still in' : '—')
-                      return (
-                        <tr key={row.id}>
-                          <td className="py-2.5 pr-4 font-medium text-gray-900">{row.name}</td>
-                          <td className="py-2.5 pr-4">
-                            <span className={`text-[10px] px-1.5 py-0.5 rounded ${row.role === 'admin' ? 'bg-purple-100 text-purple-700' : row.role === 'coach' ? 'bg-sky-100 text-sky-700' : 'bg-gray-100 text-gray-600'}`}>
-                              {row.role}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-4 text-gray-700">{inTime}</td>
-                          <td className="py-2.5 pr-4 text-gray-700">{outTime}</td>
-                          <td className={`py-2.5 text-sm ${dur === 'Still in' ? 'text-emerald-600 font-medium' : 'text-gray-600'}`}>{dur}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* ── Shop Tab ──────────────────────────────────────────────────────── */}
-      {activeTab === 'Shop' && <ShopManager />}
-
-      {/* ── Finance Tab ───────────────────────────────────────────────────── */}
-      {activeTab === 'Finance' && (
-        <>
-          {/* Billing card */}
-          {billingStatus && !billingStatus.exempt && (
-            <div className="mb-6 bg-white border border-gray-100 rounded-2xl p-6">
-              <div className="flex items-center justify-between mb-4">
-                <div>
-                  <p className="text-xs font-medium tracking-widest uppercase text-gray-400 mb-1">Plan</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {billingStatus.status === 'active' ? 'Pro — $20 AUD / month' : 'Free'}
-                  </p>
-                  {billingStatus.status === 'past_due' && (
-                    <p className="text-xs text-red-500 mt-1">Payment failed — please update your payment method.</p>
-                  )}
-                </div>
-                {billingStatus.status === 'active' || billingStatus.status === 'past_due' ? (
-                  <button onClick={handleManageBilling}
-                    className="text-sm px-4 py-2 border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
-                    Manage subscription
-                  </button>
-                ) : (
-                  <button onClick={handleUpgrade} disabled={upgradeLoading}
-                    className="text-sm px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black transition-colors disabled:opacity-50">
-                    {upgradeLoading ? 'Loading…' : 'Upgrade — $20/mo'}
-                  </button>
-                )}
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-gray-900 rounded-full transition-all"
-                    style={{ width: `${Math.min((billingStatus.member_count / billingStatus.limit) * 100, 100)}%` }} />
-                </div>
-                <p className="text-xs text-gray-500 whitespace-nowrap">
-                  {billingStatus.member_count} / {billingStatus.limit} members
-                  {billingStatus.status !== 'active' && billingStatus.member_count >= billingStatus.limit && ' — limit reached'}
-                </p>
-              </div>
-            </div>
-          )}
-          <FinanceReportPage />
-        </>
-      )}
-
-      {/* ── Articles Tab ──────────────────────────────────────────────────── */}
-      {activeTab === 'Articles' && <ArticlesManager />}
 
       {/* ── Settings Tab ──────────────────────────────────────────────────── */}
-      {activeTab === 'Settings' && <ClubLogoSettings />}
+      {activeTab === 'Settings' && (
+        <ClubSettings
+          totalCourts={totalCourts}
+          setTotalCourts={setTotalCourts}
+          setClubScheduleMap={setClubScheduleMap}
+          setOpenDow={setOpenDow}
+        />
+      )}
 
       {/* ── Cancel Series Selection Modal ─────────────────────────────────── */}
       {cancelSeriesModal && (

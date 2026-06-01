@@ -120,8 +120,9 @@ export const bookingsAPI = {
 // Courts
 // ---------------------------------------------------------------------------
 export const courtsAPI = {
-  getAll: () => api.get("/courts"),
-  getById: (id) => api.get(`/courts/${id}`),
+  getAll:   ()          => api.get('/courts'),
+  getById:  (id)        => api.get(`/courts/${id}`),
+  setCount: (count)     => api.put('/courts/count', { count }),
 };
 
 // ---------------------------------------------------------------------------
