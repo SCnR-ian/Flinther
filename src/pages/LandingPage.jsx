@@ -273,11 +273,11 @@ export default function LandingPage() {
 
       {/* Nav */}
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-xl border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 h-[60px] flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-6 h-[60px] flex items-center justify-between relative">
           <span className="font-medium text-xl tracking-tight" style={{ fontFamily: '"Kanit", sans-serif' }}>
             Flinther
           </span>
-          <div className="hidden md:flex items-center gap-8 text-sm text-gray-500">
+          <div className="hidden md:flex absolute left-1/2 -translate-x-1/2 items-center gap-8 text-sm text-gray-500">
             <a href="#features" className="hover:text-gray-900 transition-colors">{c.nav.features}</a>
             <a href="#pricing"  className="hover:text-gray-900 transition-colors">{c.nav.pricing}</a>
           </div>
