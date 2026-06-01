@@ -2807,19 +2807,8 @@ const [sessionForm,      setSessionForm]      = useState({
       {activeTab === 'Bookings' && (
         <div className="animate-fade-in">
 
-          {/* Member search */}
-          <div className="mb-5">
-            <input
-              type="text"
-              className="input w-full max-w-xs"
-              placeholder="Search member name…"
-              value={memberSearch}
-              onChange={e => setMemberSearch(e.target.value)}
-            />
-          </div>
-
           {/* Date selector */}
-          <div className="flex gap-2 overflow-x-auto pb-2 mb-6 items-center">
+          <div className="flex gap-2 overflow-x-auto pb-2 mb-4 items-center">
             {upcomingDates.map(d => {
               const iso      = toISO(d)
               const dowLabel = d.toLocaleDateString('en-AU', { weekday: 'short' })
@@ -2845,6 +2834,17 @@ const [sessionForm,      setSessionForm]      = useState({
               value={selectedDate}
               onChange={e => setSelectedDate(e.target.value)}
               title="Pick any date"
+            />
+          </div>
+
+          {/* Member search */}
+          <div className="mb-5">
+            <input
+              type="text"
+              className="input w-full max-w-xs"
+              placeholder="Search member name…"
+              value={memberSearch}
+              onChange={e => setMemberSearch(e.target.value)}
             />
           </div>
 
