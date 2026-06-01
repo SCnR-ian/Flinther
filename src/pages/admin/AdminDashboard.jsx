@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom'
 import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings } from 'lucide-react'
 import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
 import { useClub } from '@/context/ClubContext'
+import { useAuth } from '@/context/AuthContext'
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
@@ -137,7 +138,7 @@ const TAB_ICONS = {
 }
 
 // Height in px of each 30-minute slot row in the calendar view.
-const SLOT_H = 48
+const SLOT_H = 64
 
 const WEEKDAY_SLOTS  = ['15:30','16:00','16:30','17:00','17:30','18:00','18:30','19:00','19:30','20:00']
 const SATURDAY_SLOTS = ['12:00','12:30','13:00','13:30','14:00','14:30','15:00','15:30','16:00','16:30','17:00','17:30']
@@ -297,8 +298,8 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
       const { data } = await adminAPI.checkSettingsConflicts({ new_court_count: n })
       if (data.conflicts.length === 0) return doSaveCourts()
       setConflictModal({ conflicts: data.conflicts, onConfirm: doSaveCourts })
-    } catch {
-      doSaveCourts()
+    } catch (err) {
+      alert('Could not check conflicts: ' + (err?.response?.data?.message ?? 'server error'))
     } finally {
       setChecking(false)
     }
@@ -311,8 +312,8 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
       const { data } = await adminAPI.checkSettingsConflicts({ schedule })
       if (data.conflicts.length === 0) return doSaveSchedule()
       setConflictModal({ conflicts: data.conflicts, onConfirm: doSaveSchedule })
-    } catch {
-      doSaveSchedule()
+    } catch (err) {
+      alert('Could not check conflicts: ' + (err?.response?.data?.message ?? 'server error'))
     } finally {
       setChecking(false)
     }
@@ -440,6 +441,7 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
 }
 
 export default function AdminDashboard() {
+  const { user } = useAuth()
   const [activeTab,    setActiveTab]    = useState('Bookings')
   const [tabOrder, setTabOrder] = useState(() => {
     try {
@@ -2119,7 +2121,7 @@ const [sessionForm,      setSessionForm]      = useState({
       {/* Sidebar — desktop only */}
       <aside className="hidden lg:flex flex-col fixed inset-y-0 left-0 w-56 bg-white border-r border-gray-100 z-40">
         <div className="px-5 h-14 flex items-center border-b border-gray-100 shrink-0">
-          <span className="font-semibold text-sm text-gray-900">Admin</span>
+          <span className="font-semibold text-sm text-gray-900">{user?.name ?? 'Admin'}</span>
         </div>
         <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
           {TABS.map(tab => (
@@ -2608,7 +2610,7 @@ const [sessionForm,      setSessionForm]      = useState({
             return filtered.length === 0 ? (
               <p className="text-gray-800 text-sm p-5">No members match your search.</p>
             ) : (
-              <div className="overflow-x-auto overflow-y-auto max-h-[480px]">
+              <div className="overflow-x-auto overflow-y-auto max-h-[75vh]">
                 <table className="w-full text-sm">
                   <thead>
                     <tr>
