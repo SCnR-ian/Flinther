@@ -381,31 +381,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* How it works */}
-      <section className="py-28 px-6">
-        <div className="max-w-4xl mx-auto">
-          <Reveal className="text-center mb-16">
-            <h2 className="text-4xl md:text-5xl font-normal tracking-tight text-gray-900 whitespace-pre-line"
-              style={{ fontFamily: '"Kanit", sans-serif' }}>
-              {c.how.title}
-            </h2>
-          </Reveal>
-          <div className="grid md:grid-cols-3 gap-10">
-            {c.how.steps.map((s, i) => (
-              <Reveal key={i} delay={i * 0.1}>
-                <div className="flex flex-col">
-                  <p className="text-[5rem] font-normal leading-none text-gray-100 mb-4 select-none"
-                    style={{ fontFamily: '"Kanit", sans-serif' }}>
-                    {s.n}
-                  </p>
-                  <h3 className="font-semibold text-gray-900 mb-1.5">{s.title}</h3>
-                  <p className="text-sm text-gray-400 leading-relaxed">{s.sub}</p>
-                </div>
-              </Reveal>
-            ))}
-          </div>
-        </div>
-      </section>
 
       {/* Pricing */}
       <section id="pricing" className="py-28 px-6 bg-[#fafafa] border-y border-gray-100">
