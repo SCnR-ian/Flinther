@@ -497,8 +497,6 @@ const [members,      setMembers]      = useState([])
   const [addMemberError,     setAddMemberError]     = useState('')
   const [showUpgradeModal,   setShowUpgradeModal]   = useState(false)
   const [billingStatus,      setBillingStatus]      = useState(null)
-  const [inviteUrl,          setInviteUrl]          = useState(null)
-  const [inviteLoading,      setInviteLoading]      = useState(false)
   const [upgradeLoading,     setUpgradeLoading]     = useState(false)
   const [loading,      setLoading]      = useState(false)
   const [memberModal,  setMemberModal]  = useState(null) // { member, bookings, coaching, social, coachSessions, hoursBalance } | null
@@ -820,14 +818,6 @@ const [sessionForm,      setSessionForm]      = useState({
     } catch { /* ignore */ }
   }
 
-  const handleCreateInvite = async () => {
-    setInviteLoading(true)
-    try {
-      const { data } = await adminAPI.createInvite()
-      setInviteUrl(data.url)
-    } catch { /* ignore */ }
-    finally { setInviteLoading(false) }
-  }
 
   const handleSaveMemberEdit = async () => {
     if (!editingMember) return
@@ -2167,21 +2157,6 @@ const [sessionForm,      setSessionForm]      = useState({
             </svg>
             Share Schedule
           </button>
-          <button onClick={handleCreateInvite} disabled={inviteLoading}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-500 hover:bg-gray-50 hover:text-gray-900 transition-colors disabled:opacity-50"
-          >
-            <Users className="w-4 h-4 shrink-0" />
-            {inviteLoading ? 'Generating…' : 'Invite Coach'}
-          </button>
-          {inviteUrl && (
-            <div className="mx-1 mt-1 p-2 bg-gray-50 rounded-lg">
-              <p className="text-[10px] text-gray-400 mb-1">Share this link (7 days)</p>
-              <p className="text-[10px] font-mono text-gray-700 break-all leading-relaxed">{inviteUrl}</p>
-              <button onClick={() => { navigator.clipboard.writeText(inviteUrl); setInviteUrl(null) }}
-                className="mt-1.5 text-[10px] text-blue-600 hover:text-blue-800 font-medium"
-              >Copy & close</button>
-            </div>
-          )}
           <button onClick={() => { localStorage.removeItem('token'); window.location.href = '/' }}
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-gray-400 hover:bg-gray-50 hover:text-gray-700 transition-colors"
           >
