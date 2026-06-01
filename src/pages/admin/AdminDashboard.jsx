@@ -568,6 +568,7 @@ const [members,      setMembers]      = useState([])
   const [bookingViewSocialSessions, setBookingViewSocialSessions] = useState([])
   const [totalCourts,             setTotalCourts]             = useState(6)
   const [openDow,                 setOpenDow]                 = useState(null)
+  const [clubScheduleMap,         setClubScheduleMap]         = useState({})
   const [adminCheckIns,           setAdminCheckIns]           = useState([]) // { type, reference_id, user_id }
   const [memberSearch,       setMemberSearch]       = useState('')
   const [memberListSearch,   setMemberListSearch]   = useState('')
@@ -727,14 +728,32 @@ const [sessionForm,      setSessionForm]      = useState({
 
   // Derive time slots for the selected date
   const selectedDow = selectedDate ? new Date(selectedDate + 'T12:00:00').getDay() : null
-  const slotsForDay = OPEN_DAYS.find(d => d.dow === selectedDow)?.slots ?? WEEKDAY_SLOTS
+  const slotsForDay = (selectedDow !== null && clubScheduleMap[selectedDow])
+    ? clubScheduleMap[selectedDow]
+    : (Object.values(clubScheduleMap)[0] ?? WEEKDAY_SLOTS)
 
   // Fetch today's coaching sessions once on mount
   useEffect(() => {
     billingAPI.status().then(({ data }) => setBillingStatus(data)).catch(() => {})
     scheduleAPI.getAll().then(({ data }) => {
-      const dow = new Set((data.schedule || []).filter(s => s.is_active).map(s => DOW_MAP[s.day]).filter(d => d !== undefined))
-      if (dow.size > 0) setOpenDow(dow)
+      const map = {}
+      for (const s of (data.schedule || [])) {
+        if (!s.is_active) continue
+        const d = DOW_MAP[s.day]
+        if (d === undefined) continue
+        const slots = []
+        let mins = toMins((s.start_time || '09:00').slice(0, 5))
+        const end  = toMins((s.end_time   || '22:00').slice(0, 5))
+        while (mins < end) {
+          slots.push(`${String(Math.floor(mins/60)).padStart(2,'0')}:${String(mins%60).padStart(2,'0')}`)
+          mins += 30
+        }
+        map[d] = slots
+      }
+      if (Object.keys(map).length > 0) {
+        setClubScheduleMap(map)
+        setOpenDow(new Set(Object.keys(map).map(Number)))
+      }
     }).catch(() => {})
   }, [])
 
