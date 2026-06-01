@@ -3106,18 +3106,8 @@ const [sessionForm,      setSessionForm]      = useState({
       {activeTab === 'Coaching' && (
         <div className="animate-fade-in space-y-6">
 
-          {/* ── Sub-tab bar ── */}
-          <div className="flex gap-1 bg-gray-100 rounded-xl p-1 w-fit">
-            {[['Sessions', 'one-on-one'], ['Reviews', 'reviews']].map(([label, key]) => (
-              <button key={key} onClick={() => setCoachingSubTab(key)}
-                className={`px-5 py-2 rounded-lg text-sm font-medium transition-all ${coachingSubTab === key ? 'bg-white text-black shadow-sm' : 'text-gray-500 hover:text-gray-800'}`}>
-                {label}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Date picker (sessions only) ── */}
-          {coachingSubTab !== 'hours' && coachingSubTab !== 'reviews' && (
+          {/* ── Date picker ── */}
+          {(
             <div className="flex gap-2 overflow-x-auto pb-2 items-center">
               {upcomingDates.map(d => {
                 const iso      = toISO(d)
@@ -3132,10 +3122,10 @@ const [sessionForm,      setSessionForm]      = useState({
                   <button key={iso} onClick={() => setCoachingDate(iso)}
                     className={`flex-shrink-0 px-4 py-2.5 rounded-lg text-sm font-medium border transition-all text-center min-w-[72px] ${
                       coachingDate === iso
-                        ? 'bg-brand-500 border-brand-500 text-gray-900'
+                        ? 'bg-black border-black text-white'
                         : hasMatch
-                          ? 'bg-emerald-500/20 border-emerald-500/60 text-emerald-300 hover:border-emerald-400 hover:text-gray-900'
-                          : 'border-gray-200 text-gray-800 hover:border-brand-500/50 hover:text-gray-900'
+                          ? 'bg-emerald-50 border-emerald-300 text-emerald-700 hover:border-emerald-400'
+                          : 'border-gray-300 text-gray-700 hover:border-black hover:text-black'
                     }`}
                   >
                     <div>{dowLabel}</div>
@@ -3160,7 +3150,7 @@ const [sessionForm,      setSessionForm]      = useState({
           )}
 
           {/* ══════════ COMBINED SESSION FORM (one-on-one + group) ══════════ */}
-          {coachingSubTab !== 'hours' && showSessionForm && (() => {
+          {showSessionForm && (() => {
             const isGroup = coachingSubTab === 'group'
             const activeForm = isGroup ? groupForm : sessionForm
             const setActiveForm = isGroup ? setGroupForm : setSessionForm
@@ -3283,7 +3273,8 @@ const [sessionForm,      setSessionForm]      = useState({
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">Days of week</label>
                   <div className="flex gap-2 flex-wrap">
-                    {[{dow:1,label:'Mon'},{dow:2,label:'Tue'},{dow:3,label:'Wed'},{dow:6,label:'Sat'}].map(({dow,label}) => {
+                    {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, dow) => {
+                      if (openDow && openDow.size > 0 && !openDow.has(dow)) return null
                       const active = activeForm.selectedDays.includes(dow)
                       return (
                         <button key={dow} type="button"
@@ -3390,7 +3381,7 @@ const [sessionForm,      setSessionForm]      = useState({
           })()}
 
           {/* ══════════ COMBINED COACHING SESSIONS ══════════ */}
-          {coachingSubTab !== 'hours' && coachingSubTab !== 'reviews' && (
+          {(true) && (
             <div className="space-y-4">
               {/* Search */}
               <input type="text" placeholder="Search by student or coach name…"
@@ -3683,11 +3674,12 @@ const [sessionForm,      setSessionForm]      = useState({
                     <div>
                       <label className="block text-xs text-gray-800 mb-1">Days of week</label>
                       <div className="flex gap-2 flex-wrap">
-                        {[{dow:1,label:'Mon'},{dow:2,label:'Tue'},{dow:3,label:'Wed'},{dow:6,label:'Sat'}].map(({dow,label}) => {
+                        {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((label, dow) => {
+                          if (openDow && openDow.size > 0 && !openDow.has(dow)) return null
                           const active = groupForm.selectedDays.includes(dow)
                           return (
                             <button key={dow} type="button"
-                              className={`px-3 py-1.5 rounded text-sm font-medium transition-colors ${active ? 'bg-emerald-600 text-gray-900' : 'bg-slate-700 text-gray-800 hover:bg-slate-600'}`}
+                              className={`px-3 py-1.5 rounded-xl text-sm font-medium border transition-all ${active ? 'bg-black text-white border-black' : 'bg-white text-gray-700 border-gray-300 hover:border-gray-600'}`}
                               onClick={() => setGroupForm(f => ({
                                 ...f,
                                 selectedDays: active
@@ -3800,111 +3792,6 @@ const [sessionForm,      setSessionForm]      = useState({
                   </div>
                 )
               })()}
-
-
-          {/* ── Reviews sub-tab ── */}
-          {coachingSubTab === 'reviews' && (
-            <div className="space-y-4">
-              {reviewsLoading ? (
-                <p className="text-sm text-gray-400">Loading…</p>
-              ) : allReviews.length === 0 ? (
-                <p className="text-sm text-gray-400">No reviews yet.</p>
-              ) : selectedReviewStudent ? (() => {
-                const studentReviews = allReviews.filter(r => r.student_name === selectedReviewStudent)
-                return (
-                  <div className="space-y-3">
-                    <button
-                      onClick={() => setSelectedReviewStudent(null)}
-                      className="text-sm text-gray-500 hover:text-gray-800 flex items-center gap-1"
-                    >
-                      ← All students
-                    </button>
-                    <h3 className="text-sm font-medium text-gray-900">{selectedReviewStudent}</h3>
-                    <div className="space-y-3">
-                      {studentReviews.map(r => (
-                        <div key={r.session_id} className="card space-y-2">
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm text-gray-900">
-                              {new Date(r.date.slice(0,10)+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short',year:'numeric'})}
-                              {' · '}{r.coach_name}
-                            </p>
-                            <p className="text-xs text-gray-400">{fmtTime(r.start_time)}–{fmtTime(r.end_time)}</p>
-                          </div>
-                          {(r.review_body || (r.review_skills?.length > 0)) && (
-                            <div className="border-l-2 border-sky-200 pl-3 space-y-1">
-                              <p className="text-xs text-gray-500 uppercase tracking-wide">Coach</p>
-                              {r.review_skills?.length > 0 && (
-                                <div className="flex flex-wrap gap-1">
-                                  {r.review_skills.map(k => (
-                                    <span key={k} className="text-xs bg-gray-100 px-2 py-0.5 rounded-full text-gray-600">{k}</span>
-                                  ))}
-                                </div>
-                              )}
-                              {r.review_body && <p className="text-sm text-gray-700 whitespace-pre-wrap">{r.review_body}</p>}
-                            </div>
-                          )}
-                          {r.student_rating != null && (
-                            <div className="border-l-2 border-amber-200 pl-3 space-y-1">
-                              <p className="text-xs text-gray-500 uppercase tracking-wide">Student</p>
-                              <div className="flex items-center gap-1">
-                                {[1,2,3,4,5].map(n => (
-                                  <span key={n} className={`text-sm ${n <= r.student_rating ? 'text-amber-400' : 'text-gray-200'}`}>★</span>
-                                ))}
-                              </div>
-                              {r.student_comment && <p className="text-sm text-gray-700 whitespace-pre-wrap">{r.student_comment}</p>}
-                            </div>
-                          )}
-                          {!r.review_body && !r.review_skills?.length && r.student_rating == null && (
-                            <p className="text-xs text-gray-400 italic">No content yet.</p>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )
-              })() : (() => {
-                // Group by student, compute avg rating
-                const byStudent = {}
-                for (const r of allReviews) {
-                  if (!byStudent[r.student_name]) byStudent[r.student_name] = []
-                  byStudent[r.student_name].push(r)
-                }
-                return (
-                  <div className="card divide-y divide-gray-100">
-                    {Object.entries(byStudent).map(([name, reviews]) => {
-                      const rated = reviews.filter(r => r.student_rating != null)
-                      const avg   = rated.length ? (rated.reduce((s, r) => s + r.student_rating, 0) / rated.length) : null
-                      const latest = reviews[0]
-                      const latestDate = latest?.date ? new Date(latest.date.slice(0,10)+'T12:00:00').toLocaleDateString('en-AU',{day:'numeric',month:'short'}) : ''
-                      return (
-                        <button
-                          key={name}
-                          onClick={() => setSelectedReviewStudent(name)}
-                          className="w-full flex items-center justify-between py-3 px-1 text-left hover:bg-gray-50 transition-colors"
-                        >
-                          <div>
-                            <p className="text-sm font-medium text-gray-900">{name}</p>
-                            <p className="text-xs text-gray-400">{reviews.length} session{reviews.length !== 1 ? 's' : ''} · Latest: {latestDate}</p>
-                          </div>
-                          <div className="flex items-center gap-1 flex-shrink-0">
-                            {avg != null ? (
-                              <>
-                                <span className="text-amber-400 text-sm">★</span>
-                                <span className="text-sm text-gray-700">{avg.toFixed(1)}</span>
-                              </>
-                            ) : (
-                              <span className="text-xs text-gray-400">No rating</span>
-                            )}
-                            <span className="text-gray-300 ml-2">›</span>
-                          </div>
-                        </button>
-                      )
-                    })}
-                  </div>
-                )
-              })()}
-            </div>
-          )}
 
         </div>
       )}
