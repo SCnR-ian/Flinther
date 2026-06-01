@@ -204,12 +204,18 @@ const DAYS_ORDER = [
   { key: 'Sun', label: 'Sunday'    },
 ]
 
+const CONFLICT_LABELS = { booking: 'Booking', coaching: 'Coaching', social: 'Social Play' }
+const CONFLICT_COLORS = { booking: 'bg-blue-50 text-blue-700', coaching: 'bg-amber-50 text-amber-700', social: 'bg-green-50 text-green-700' }
+const REASON_LABELS   = { day_closed: 'Day being closed', outside_hours: 'Outside new hours', court_removed: 'Court being removed' }
+
 function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpenDow }) {
   const [courtsInput,   setCourtsInput]   = useState(String(totalCourts))
   const [courtsSaving,  setCourtsSaving]  = useState(false)
   const [dayForms,      setDayForms]      = useState({})
   const [schedLoading,  setSchedLoading]  = useState(true)
   const [schedSaving,   setSchedSaving]   = useState(false)
+  const [conflictModal, setConflictModal] = useState(null) // { conflicts, onConfirm }
+  const [checking,      setChecking]      = useState(false)
 
   useEffect(() => {
     setSchedLoading(true)
@@ -229,9 +235,8 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
       .finally(() => setSchedLoading(false))
   }, [])
 
-  const saveCourts = async () => {
+  const doSaveCourts = async () => {
     const n = parseInt(courtsInput)
-    if (isNaN(n) || n < 1) return alert('Enter a valid number.')
     setCourtsSaving(true)
     try {
       await courtsAPI.setCount(n)
@@ -243,7 +248,7 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
     }
   }
 
-  const saveSchedule = async () => {
+  const doSaveSchedule = async () => {
     setSchedSaving(true)
     try {
       const updatedForms = { ...dayForms }
@@ -259,7 +264,6 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
         }
       }
       setDayForms(updatedForms)
-      // Refresh parent state
       const { data } = await scheduleAPI.getAll()
       const map = {}
       for (const s of (data.schedule || [])) {
@@ -284,6 +288,36 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
     }
   }
 
+  const checkAndSaveCourts = async () => {
+    const n = parseInt(courtsInput)
+    if (isNaN(n) || n < 1) return alert('Enter a valid number.')
+    if (n >= totalCourts) return doSaveCourts()
+    setChecking(true)
+    try {
+      const { data } = await adminAPI.checkSettingsConflicts({ new_court_count: n })
+      if (data.conflicts.length === 0) return doSaveCourts()
+      setConflictModal({ conflicts: data.conflicts, onConfirm: doSaveCourts })
+    } catch {
+      doSaveCourts()
+    } finally {
+      setChecking(false)
+    }
+  }
+
+  const checkAndSaveSchedule = async () => {
+    const schedule = DAYS_ORDER.map(d => ({ day: d.key, ...dayForms[d.key] }))
+    setChecking(true)
+    try {
+      const { data } = await adminAPI.checkSettingsConflicts({ schedule })
+      if (data.conflicts.length === 0) return doSaveSchedule()
+      setConflictModal({ conflicts: data.conflicts, onConfirm: doSaveSchedule })
+    } catch {
+      doSaveSchedule()
+    } finally {
+      setChecking(false)
+    }
+  }
+
   const setDay = (key, patch) => setDayForms(prev => ({ ...prev, [key]: { ...prev[key], ...patch } }))
 
   return (
@@ -300,9 +334,9 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
             className="w-20 border border-gray-200 rounded-lg px-3 py-2 text-sm text-center"
           />
           <span className="text-sm text-gray-500 flex-1">courts available for booking</span>
-          <button onClick={saveCourts} disabled={courtsSaving}
+          <button onClick={checkAndSaveCourts} disabled={courtsSaving || checking}
             className="text-sm px-4 py-2 bg-gray-900 text-white rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
-            {courtsSaving ? 'Saving…' : 'Save'}
+            {courtsSaving || checking ? 'Checking…' : 'Save'}
           </button>
         </div>
       </section>
@@ -349,14 +383,57 @@ function ClubSettings({ totalCourts, setTotalCourts, setClubScheduleMap, setOpen
               })}
             </div>
             <div className="mt-4 flex justify-end">
-              <button onClick={saveSchedule} disabled={schedSaving}
+              <button onClick={checkAndSaveSchedule} disabled={schedSaving || checking}
                 className="text-sm px-5 py-2.5 bg-gray-900 text-white rounded-xl hover:bg-black disabled:opacity-50 transition-colors">
-                {schedSaving ? 'Saving…' : 'Save Hours'}
+                {schedSaving || checking ? 'Checking…' : 'Save Hours'}
               </button>
             </div>
           </>
         )}
       </section>
+
+      {/* Conflict confirmation modal */}
+      {conflictModal && (
+        <div className="fixed inset-0 z-[9999] bg-black/50 flex items-center justify-center p-4"
+             onClick={e => { if (e.target === e.currentTarget) setConflictModal(null) }}>
+          <div className="bg-white rounded-2xl w-full max-w-lg max-h-[80vh] flex flex-col shadow-xl">
+            <div className="p-5 border-b border-gray-100">
+              <h3 className="text-base font-semibold text-gray-900">Scheduling Conflicts Detected</h3>
+              <p className="text-sm text-gray-500 mt-1">
+                {conflictModal.conflicts.length} existing session{conflictModal.conflicts.length > 1 ? 's' : ''} will be affected by this change.
+                You can still save — affected sessions won't be automatically cancelled.
+              </p>
+            </div>
+            <div className="overflow-y-auto flex-1 p-5 space-y-2">
+              {conflictModal.conflicts.map((c, i) => (
+                <div key={i} className="flex items-start gap-3 p-3 rounded-xl bg-gray-50 border border-gray-100">
+                  <span className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${CONFLICT_COLORS[c.type]}`}>
+                    {CONFLICT_LABELS[c.type]}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-gray-900 truncate">{c.description}</p>
+                    <p className="text-xs text-gray-500">
+                      {new Date(c.date).toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                      {' · '}{fmtTime(c.start_time)} – {fmtTime(c.end_time)}
+                    </p>
+                  </div>
+                  <span className="text-[10px] text-gray-400 shrink-0 mt-0.5">{REASON_LABELS[c.reason]}</span>
+                </div>
+              ))}
+            </div>
+            <div className="p-5 border-t border-gray-100 flex gap-3">
+              <button onClick={() => setConflictModal(null)}
+                className="flex-1 py-2.5 text-sm border border-gray-200 rounded-xl hover:bg-gray-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={() => { setConflictModal(null); conflictModal.onConfirm() }}
+                className="flex-1 py-2.5 text-sm bg-gray-900 text-white rounded-xl hover:bg-black transition-colors">
+                Save Anyway
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

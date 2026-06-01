@@ -142,6 +142,7 @@ export const adminAPI = {
   getCoachResume: (coachId) => `${api.defaults.baseURL}/admin/coaches/${coachId}/resume`,
   getMemberActivities: (id) => api.get(`/admin/members/${id}/activities`),
   createInvite: () => api.post('/admin/invites'),
+  checkSettingsConflicts: (data) => api.post('/admin/settings-conflicts', data),
 };
 
 // ---------------------------------------------------------------------------
