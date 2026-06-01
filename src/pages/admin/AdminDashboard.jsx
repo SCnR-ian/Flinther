@@ -2707,7 +2707,7 @@ const [sessionForm,      setSessionForm]      = useState({
                                     {m.is_active === false ? (
                                       <button onClick={() => handleSetMemberStatus(m.id, true)} className="text-xs text-emerald-600 hover:text-emerald-800 font-medium">Activate</button>
                                     ) : (
-                                      <button onClick={() => handleSetMemberStatus(m.id, false)} className="text-xs text-orange-600 hover:text-orange-800 font-medium">Deactivate</button>
+                                      <button onClick={() => handleSetMemberStatus(m.id, false)} className="text-xs text-red-500 hover:text-red-700 font-medium">Deactivate</button>
                                     )}
                                   </>
                                 )}
