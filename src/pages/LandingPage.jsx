@@ -188,8 +188,7 @@ function Reveal({ children, delay = 0, className = "" }) {
 }
 
 const SLIDES = [
-  { src: "/ss1.png", alt: "Admin dashboard", url: "epping.flinther.com/admin" },
-  { src: "/ss3.png", alt: "Venue", url: null },
+  { src: "/ss1.png", alt: "Admin dashboard", url: "flinther.com" },
 ];
 
 function Screenshots() {
