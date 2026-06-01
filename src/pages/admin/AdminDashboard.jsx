@@ -798,7 +798,7 @@ const [sessionForm,      setSessionForm]      = useState({
           setBookingViewSessions(cd.sessions)
           setBookingViewSocialSessions(sd.sessions)
           setAdminCheckIns(kid.checkIns)
-          setTotalCourts(ctd.courts?.length || 6)
+          setTotalCourts(ctd.courts?.length ?? 0)
         }
       })
       .catch(() => {})
