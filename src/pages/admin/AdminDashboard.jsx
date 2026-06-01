@@ -2569,8 +2569,8 @@ const [sessionForm,      setSessionForm]      = useState({
               <form onSubmit={handleAddMember} className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <input className="input text-sm" placeholder="Full name *" value={addMemberForm.name}
                   onChange={e => setAddMemberForm(f => ({ ...f, name: e.target.value }))} required />
-                <input className="input text-sm" type="email" placeholder="Email address *" value={addMemberForm.email}
-                  onChange={e => setAddMemberForm(f => ({ ...f, email: e.target.value }))} required />
+                <input className="input text-sm" type="email" placeholder="Email address (optional)" value={addMemberForm.email}
+                  onChange={e => setAddMemberForm(f => ({ ...f, email: e.target.value }))} />
                 <input className="input text-sm" type="tel" placeholder="Phone (optional)" value={addMemberForm.phone}
                   onChange={e => setAddMemberForm(f => ({ ...f, phone: e.target.value }))} />
                 {addMemberError && <p className="sm:col-span-2 text-xs text-red-400">{addMemberError}</p>}
