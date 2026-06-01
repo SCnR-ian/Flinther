@@ -3141,10 +3141,11 @@ const [sessionForm,      setSessionForm]      = useState({
             const setActiveForm = isGroup ? setGroupForm : setSessionForm
             const formDow = activeForm.date ? new Date(activeForm.date + 'T12:00:00').getDay() : null
             const effectiveDows = activeForm.selectedDays.length ? activeForm.selectedDays : (formDow != null ? [formDow] : [])
-            const hasSat = effectiveDows.includes(6)
-            const hasWkd = effectiveDows.some(d => d !== 6)
-            const formSlots = hasSat && hasWkd ? ALL_SLOTS : hasSat ? SATURDAY_SLOTS : WEEKDAY_SLOTS
-            const formClosing = slotClosing(formSlots)
+            const allClubSlots = [...new Set(Object.values(clubScheduleMap).flat())].sort()
+            const formSlots = effectiveDows.length
+              ? [...new Set(effectiveDows.flatMap(d => clubScheduleMap[d] ?? allClubSlots))].sort()
+              : (allClubSlots.length ? allClubSlots : ALL_SLOTS)
+            const formClosing = formSlots.length ? slotClosing(formSlots) : '22:00'
             const endSlots = [...formSlots, formClosing].filter(s => !activeForm.start_time || toMins(s) > toMins(activeForm.start_time))
             const selectedStudents = isGroup ? members.filter(m => groupForm.student_ids.includes(m.id)) : []
             const filteredStudents = isGroup && groupStudentSearch
@@ -3276,7 +3277,7 @@ const [sessionForm,      setSessionForm]      = useState({
                     <label className="block text-sm font-medium text-gray-700">Times per day</label>
                     {effectiveDows.map(dow => {
                       const dayLabel = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]
-                      const slots = dow === 6 ? SATURDAY_SLOTS : WEEKDAY_SLOTS
+                      const slots = clubScheduleMap[dow] ?? allClubSlots
                       const dt = activeForm.dayTimes[dow] || { start_time: '', end_time: '' }
                       const eSlots = [...slots, slotClosing(slots)].filter(s => !dt.start_time || toMins(s) > toMins(dt.start_time))
                       return (
@@ -3675,7 +3676,7 @@ const [sessionForm,      setSessionForm]      = useState({
                         <label className="block text-xs text-gray-800">Times per day</label>
                         {effectiveDows.map(dow => {
                           const dayLabel = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dow]
-                          const slots = dow === 6 ? SATURDAY_SLOTS : WEEKDAY_SLOTS
+                          const slots = clubScheduleMap[dow] ?? allClubSlots
                           const dt = groupForm.dayTimes[dow] || { start_time: '', end_time: '' }
                           const eSlots = [...slots, slotClosing(slots)].filter(s => !dt.start_time || toMins(s) > toMins(dt.start_time))
                           return (
