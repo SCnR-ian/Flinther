@@ -3211,9 +3211,6 @@ const [sessionForm,      setSessionForm]      = useState({
                         ))}
                       </div>
                     )}
-                    {sessionStudentBalance !== null && (
-                      <p className={`text-xs mt-1 ${sessionStudentBalance > 0 ? 'text-emerald-600' : 'text-red-600'}`}>Balance: ${sessionStudentBalance.toFixed(2)}</p>
-                    )}
                   </div>
                 ) : (
                   <div>
@@ -3338,14 +3335,8 @@ const [sessionForm,      setSessionForm]      = useState({
 
                 {/* Hours preview */}
                 {activeForm.start_time && activeForm.end_time && (() => {
-                  const hrsPerSession = (toMins(activeForm.end_time) - toMins(activeForm.start_time)) / 60
-                  const numDays = activeForm.selectedDays.length || 1
-                  const total = hrsPerSession * activeForm.weeks * numDays
                   return (
-                    <p className="text-sm text-gray-600">
-                      Will credit <span className="font-semibold text-gray-900">{total.toFixed(1)} hrs</span> to {isGroup ? 'each student' : 'student'}
-                      {' '}({hrsPerSession.toFixed(1)} hr × {activeForm.weeks} wk{activeForm.weeks > 1 ? 's' : ''}{numDays > 1 ? ` × ${numDays} days` : ''}). Deducted on attendance.
-                    </p>
+                    null
                   )
                 })()}
 
@@ -3762,13 +3753,7 @@ const [sessionForm,      setSessionForm]      = useState({
                         const t = mixed2 ? groupForm.dayTimes[d] : { start_time: groupForm.start_time, end_time: groupForm.end_time }
                         return sum + (toMins(t.end_time) - toMins(t.start_time)) / 60 * groupForm.weeks
                       }, 0)
-                      return (
-                        <p className="text-xs text-gray-800">
-                          Will credit <span className="font-medium text-gray-900">{total.toFixed(1)} hrs</span> to each student
-                          {numDays > 1 ? ` (${numDays} days/week × ${groupForm.weeks} week${groupForm.weeks > 1 ? 's' : ''})` : ` (${groupForm.weeks} week${groupForm.weeks > 1 ? 's' : ''})`}.
-                          Deducted each time they attend.
-                        </p>
-                      )
+                      return null
                     })()}
                     <button onClick={handleCreateGroupSession} className="btn-primary text-sm"
                       disabled={groupForm.student_ids.length < 2}>
