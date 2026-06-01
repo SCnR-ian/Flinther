@@ -4718,58 +4718,7 @@ const [sessionForm,      setSessionForm]      = useState({
                         Balance: ${balance.toFixed(2)}
                       </span>
                     )}
-                    {(soloPrice != null || groupPrice != null) && !memberModalPricingForm.open && (
-                      <button
-                        className="badge border text-xs bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100 transition-colors"
-                        onClick={() => setMemberModalPricingForm(f => ({ ...f, open: true }))}
-                        title="Edit pricing"
-                      >
-                        {soloPrice != null ? `1-on-1 $${Number(soloPrice).toFixed(2)}` : ''}
-                        {soloPrice != null && groupPrice != null ? ' · ' : ''}
-                        {groupPrice != null ? `Group $${Number(groupPrice).toFixed(2)}` : ''}
-                        {' ✎'}
-                      </button>
-                    )}
                   </div>
-                  {memberModalPricingForm.open && (
-                    <div className="flex items-center gap-2 mt-2 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">1-on-1 $</span>
-                        <input type="number" min="0" step="0.01" className="input text-xs py-0.5 w-20"
-                          placeholder="70"
-                          value={memberModalPricingForm.solo}
-                          onChange={e => setMemberModalPricingForm(f => ({ ...f, solo: e.target.value }))} />
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span className="text-xs text-gray-500">Group $</span>
-                        <input type="number" min="0" step="0.01" className="input text-xs py-0.5 w-20"
-                          placeholder="50"
-                          value={memberModalPricingForm.group}
-                          onChange={e => setMemberModalPricingForm(f => ({ ...f, group: e.target.value }))} />
-                      </div>
-                      <button className="btn-primary text-xs py-0.5 px-2"
-                        disabled={memberModalPricingForm.saving || !memberModalPricingForm.solo || !memberModalPricingForm.group}
-                        onClick={async () => {
-                          setMemberModalPricingForm(f => ({ ...f, saving: true }))
-                          try {
-                            const { data: pd } = await coachingAPI.updateStudentPrices(member.id, {
-                              solo_price: parseFloat(memberModalPricingForm.solo),
-                              group_price: parseFloat(memberModalPricingForm.group),
-                            })
-                            setMemberModal(m => ({ ...m, soloPrice: pd.solo_price, groupPrice: pd.group_price }))
-                            setMemberModalPricingForm(f => ({ ...f, saving: false, open: false }))
-                          } catch {
-                            setMemberModalPricingForm(f => ({ ...f, saving: false }))
-                          }
-                        }}>
-                        {memberModalPricingForm.saving ? 'Saving…' : 'Save'}
-                      </button>
-                      <button className="text-xs text-gray-500 hover:text-gray-700"
-                        onClick={() => setMemberModalPricingForm(f => ({ ...f, open: false }))}>
-                        Cancel
-                      </button>
-                    </div>
-                  )}
                 </div>
                 <button onClick={() => { setMemberModal(null); setMemberModalEditId(null); setMemberModalSelected(new Set()); setMemberModalCoachingExpanded(new Set()) }} className="text-gray-800 hover:text-gray-900 text-xl leading-none mt-1">✕</button>
               </div>
