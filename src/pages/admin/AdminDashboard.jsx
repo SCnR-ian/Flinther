@@ -5477,6 +5477,15 @@ const [sessionForm,      setSessionForm]      = useState({
                   <p className="text-gray-800 text-sm mt-0.5">
                     {[coachViewModal.email, coachViewModal.phone, `${totalStudents} student${totalStudents !== 1 ? 's' : ''}`].filter(Boolean).join(' · ')}
                   </p>
+                  <button
+                    onClick={() => {
+                      const url = `${window.location.origin}/schedule/${coachViewModal.coach_id}`
+                      navigator.clipboard.writeText(url)
+                    }}
+                    className="mt-2 text-xs text-blue-600 hover:text-blue-800 font-medium"
+                  >
+                    Copy schedule link
+                  </button>
                 </div>
                 <button onClick={() => { setCoachViewModal(null); setCoachViewExpanded(new Set()); setCoachViewSelectedDate({}); setCoachSeriesExpanded(new Set()) }}
                   className="text-gray-800 hover:text-gray-900 text-xl leading-none mt-1">✕</button>
