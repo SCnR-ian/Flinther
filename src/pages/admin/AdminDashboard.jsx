@@ -5333,41 +5333,6 @@ const [sessionForm,      setSessionForm]      = useState({
                 />
               </div>
 
-              {/* Resume drag-and-drop */}
-              <div>
-                <label className="block text-xs text-gray-800 mb-1">Resume (PDF, optional)</label>
-                <div
-                  onDragOver={e => { e.preventDefault(); setCoachDragging(true) }}
-                  onDragLeave={() => setCoachDragging(false)}
-                  onDrop={e => {
-                    e.preventDefault()
-                    setCoachDragging(false)
-                    const file = e.dataTransfer.files[0]
-                    if (file && file.type === 'application/pdf') setCoachForm(f => ({ ...f, resume: file }))
-                    else alert('Please drop a PDF file.')
-                  }}
-                  className={`border-2 border-dashed rounded-lg p-6 text-center cursor-pointer transition-colors ${
-                    coachDragging ? 'border-brand-400 bg-brand-500/10' : 'border-gray-200 hover:border-slate-500'
-                  }`}
-                  onClick={() => document.getElementById('coach-resume-input').click()}
-                >
-                  {coachForm.resume ? (
-                    <p className="text-sm text-emerald-400">{coachForm.resume.name}</p>
-                  ) : (
-                    <p className="text-sm text-gray-800">Drag & drop a PDF here, or click to browse</p>
-                  )}
-                  <input
-                    id="coach-resume-input"
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={e => { if (e.target.files[0]) setCoachForm(f => ({ ...f, resume: e.target.files[0] })) }}
-                  />
-                </div>
-                {coachForm.resume && (
-                  <button className="text-xs text-red-400 hover:text-red-300 mt-1" onClick={() => setCoachForm(f => ({ ...f, resume: null }))}>Remove file</button>
-                )}
-              </div>
 
               <div className="flex gap-3 pt-1">
                 <button onClick={() => setCoachModal(null)} className="btn-secondary flex-1">Cancel</button>
