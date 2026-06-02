@@ -153,6 +153,7 @@ export const coachingAPI = {
   getCoaches:          ()       => api.get('/coaching/coaches'),
   getPublicCoaches:    ()       => api.get('/coaching/coaches/public'),
   getDailySchedule:    (date)   => api.get('/coaching/daily', { params: { date } }),
+  getCoachSummary:     (from, to) => api.get('/coaching/coach-summary', { params: { from, to } }),
   createCoach:      (data)   => api.post('/coaching/coaches', data),
   deleteCoach:      (id)     => api.delete(`/coaching/coaches/${id}`),
   deleteCoachByUserId: (uid) => api.delete(`/coaching/coaches/by-user/${uid}`),

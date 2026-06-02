@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
-import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings } from 'lucide-react'
+import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings, BarChart2 } from 'lucide-react'
 import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
 import { useClub } from '@/context/ClubContext'
 import { useAuth } from '@/context/AuthContext'
@@ -128,12 +128,13 @@ function groupByWeek(sessions) {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 
-const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Settings']
+const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Report', 'Settings']
 const TAB_ICONS = {
   'Bookings':    <Calendar    className="w-4 h-4 shrink-0" />,
   'Members':     <Users       className="w-4 h-4 shrink-0" />,
   'Coaching':    <Dumbbell    className="w-4 h-4 shrink-0" />,
   'Social Play': <PlayCircle  className="w-4 h-4 shrink-0" />,
+  'Report':      <BarChart2   className="w-4 h-4 shrink-0" />,
   'Settings':    <Settings    className="w-4 h-4 shrink-0" />,
 }
 
@@ -194,6 +195,96 @@ function layoutEvents(events) {
 }
 
 // ─── Component ──────────────────────────────────────────────────────────────
+
+function CoachReport() {
+  const getWeekRange = () => {
+    const today = new Date()
+    const mon = new Date(today)
+    mon.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1))
+    const sun = new Date(mon)
+    sun.setDate(mon.getDate() + 6)
+    const fmt = d => d.toISOString().slice(0, 10)
+    return { from: fmt(mon), to: fmt(sun) }
+  }
+
+  const [range,   setRange]   = useState(getWeekRange)
+  const [coaches, setCoaches] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  const load = (from, to) => {
+    setLoading(true)
+    coachingAPI.getCoachSummary(from, to)
+      .then(({ data }) => setCoaches(data.coaches || []))
+      .catch(() => setCoaches([]))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(() => { load(range.from, range.to) }, [])
+
+  const handleChange = (key, val) => {
+    const next = { ...range, [key]: val }
+    setRange(next)
+    if (next.from && next.to && next.from <= next.to) load(next.from, next.to)
+  }
+
+  const totalSolo  = coaches.reduce((s, c) => s + c.solo, 0)
+  const totalGrp   = coaches.reduce((s, c) => s + c.grp, 0)
+  const totalAll   = coaches.reduce((s, c) => s + c.total, 0)
+
+  return (
+    <div className="p-4 sm:p-6 max-w-2xl mx-auto animate-fade-in">
+      <div className="flex items-center gap-3 mb-6 flex-wrap">
+        <h2 className="text-base font-semibold text-gray-900">Coach Sessions</h2>
+        <div className="flex items-center gap-2 ml-auto">
+          <input type="date" value={range.from} onChange={e => handleChange('from', e.target.value)}
+            className="input text-sm" />
+          <span className="text-gray-400 text-sm">–</span>
+          <input type="date" value={range.to} onChange={e => handleChange('to', e.target.value)}
+            className="input text-sm" />
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex justify-center py-16">
+          <div className="w-5 h-5 border-2 border-gray-200 border-t-black rounded-full animate-spin" />
+        </div>
+      ) : coaches.length === 0 ? (
+        <div className="text-center py-16 text-gray-400 text-sm">No sessions in this period.</div>
+      ) : (
+        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="bg-gray-50 border-b border-gray-200">
+                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Coach</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">1-on-1</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Group</th>
+                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {coaches.map(c => (
+                <tr key={c.coach_name} className="hover:bg-gray-50 transition-colors">
+                  <td className="px-5 py-3.5 font-medium text-gray-900">{c.coach_name}</td>
+                  <td className="px-4 py-3.5 text-center text-gray-600">{c.solo}</td>
+                  <td className="px-4 py-3.5 text-center text-gray-600">{c.grp}</td>
+                  <td className="px-4 py-3.5 text-center font-semibold text-gray-900">{c.total}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-gray-50 border-t border-gray-200">
+                <td className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total</td>
+                <td className="px-4 py-3 text-center text-xs font-semibold text-gray-700">{totalSolo}</td>
+                <td className="px-4 py-3 text-center text-xs font-semibold text-gray-700">{totalGrp}</td>
+                <td className="px-4 py-3 text-center text-xs font-bold text-gray-900">{totalAll}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
 
 const DAYS_ORDER = [
   { key: 'Mon', label: 'Monday'    },
@@ -4366,6 +4457,9 @@ const [sessionForm,      setSessionForm]      = useState({
         </div>
       )}
 
+
+      {/* ── Report Tab ────────────────────────────────────────────────────── */}
+      {activeTab === 'Report' && <CoachReport />}
 
       {/* ── Settings Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'Settings' && (
