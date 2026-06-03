@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react'
 import FeedbackButton from '@/components/common/FeedbackButton'
 import { createPortal } from 'react-dom'
-import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings, BarChart2 } from 'lucide-react'
+import { Camera, Plus, Trash2, Calendar, Users, Dumbbell, PlayCircle, LogOut, Settings } from 'lucide-react'
 import { adminAPI, bookingsAPI, coachingAPI, socialAPI, checkinAPI, paymentsAPI, courtsAPI, clubAPI, billingAPI, scheduleAPI } from '@/api/api'
 import { useClub } from '@/context/ClubContext'
 import { useAuth } from '@/context/AuthContext'
@@ -128,13 +128,12 @@ function groupByWeek(sessions) {
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 
-const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Report', 'Settings']
+const TABS = ['Bookings', 'Members', 'Coaching', 'Social Play', 'Settings']
 const TAB_ICONS = {
   'Bookings':    <Calendar    className="w-4 h-4 shrink-0" />,
   'Members':     <Users       className="w-4 h-4 shrink-0" />,
   'Coaching':    <Dumbbell    className="w-4 h-4 shrink-0" />,
   'Social Play': <PlayCircle  className="w-4 h-4 shrink-0" />,
-  'Report':      <BarChart2   className="w-4 h-4 shrink-0" />,
   'Settings':    <Settings    className="w-4 h-4 shrink-0" />,
 }
 
@@ -196,139 +195,7 @@ function layoutEvents(events) {
 
 // ─── Component ──────────────────────────────────────────────────────────────
 
-function CoachReport() {
-  const getWeekRange = () => {
-    const today = new Date()
-    const mon = new Date(today)
-    mon.setDate(today.getDate() - (today.getDay() === 0 ? 6 : today.getDay() - 1))
-    const sun = new Date(mon)
-    sun.setDate(mon.getDate() + 6)
-    const fmt = d => d.toISOString().slice(0, 10)
-    return { from: fmt(mon), to: fmt(sun) }
-  }
 
-  const [range,    setRange]    = useState(getWeekRange)
-  const [coaches,  setCoaches]  = useState([])
-  const [loading,  setLoading]  = useState(false)
-  const [expanded, setExpanded] = useState(new Set())
-
-  const load = (from, to) => {
-    setLoading(true)
-    setExpanded(new Set())
-    coachingAPI.getCoachSummary(from, to)
-      .then(({ data }) => setCoaches(data.coaches || []))
-      .catch(() => setCoaches([]))
-      .finally(() => setLoading(false))
-  }
-
-  useEffect(() => { load(range.from, range.to) }, [])
-
-  const handleChange = (key, val) => {
-    const next = { ...range, [key]: val }
-    setRange(next)
-    if (next.from && next.to && next.from <= next.to) load(next.from, next.to)
-  }
-
-  const toggle = id => setExpanded(prev => {
-    const next = new Set(prev)
-    next.has(id) ? next.delete(id) : next.add(id)
-    return next
-  })
-
-  // Group sessions by date within a coach
-  const byDate = sessions => {
-    const map = {}
-    for (const s of sessions) {
-      const d = s.date?.slice(0, 10)
-      if (!map[d]) map[d] = []
-      map[d].push(s)
-    }
-    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
-  }
-
-  return (
-    <div className="p-4 sm:p-6 max-w-2xl mx-auto animate-fade-in">
-      <div className="flex items-center gap-3 mb-5 flex-wrap">
-        <h2 className="text-base font-semibold text-gray-900">Coach Sessions</h2>
-        <div className="flex items-center gap-2 ml-auto">
-          <input type="date" value={range.from} onChange={e => handleChange('from', e.target.value)}
-            className="input text-sm" />
-          <span className="text-gray-400 text-sm">–</span>
-          <input type="date" value={range.to} onChange={e => handleChange('to', e.target.value)}
-            className="input text-sm" />
-        </div>
-      </div>
-
-      {loading ? (
-        <div className="flex justify-center py-16">
-          <div className="w-5 h-5 border-2 border-gray-200 border-t-black rounded-full animate-spin" />
-        </div>
-      ) : coaches.length === 0 ? (
-        <div className="text-center py-16 text-gray-400 text-sm">No sessions in this period.</div>
-      ) : (
-        <div className="space-y-2">
-          {coaches.map(c => {
-            const isOpen   = expanded.has(c.coach_id)
-            const sessions = c.sessions || []
-            const solo     = sessions.filter(s => s.type === 'solo').length
-            const grp      = sessions.filter(s => s.type === 'group').length
-            return (
-              <div key={c.coach_id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-                {/* Coach header row */}
-                <button onClick={() => toggle(c.coach_id)}
-                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <span className="font-medium text-gray-900">{c.coach_name}</span>
-                    <span className="text-xs text-gray-400">
-                      {solo > 0 && `${solo} 1-on-1`}
-                      {solo > 0 && grp > 0 && ' · '}
-                      {grp > 0 && `${grp} group`}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900">{sessions.length} sessions</span>
-                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
-                      fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                    </svg>
-                  </div>
-                </button>
-
-                {/* Sessions detail */}
-                {isOpen && (
-                  <div className="border-t border-gray-100">
-                    {byDate(sessions).map(([date, daySessions]) => (
-                      <div key={date}>
-                        <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
-                          <span className="text-xs font-semibold text-gray-500">
-                            {new Date(date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
-                          </span>
-                        </div>
-                        {daySessions.map((s, i) => (
-                          <div key={i} className="flex items-center justify-between px-5 py-3 border-b border-gray-50 last:border-b-0">
-                            <div className="flex items-center gap-3">
-                              <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
-                                s.type === 'group' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'
-                              }`}>{s.type === 'group' ? 'Group' : '1-on-1'}</span>
-                              <span className="text-sm text-gray-900">{s.student_names}</span>
-                            </div>
-                            <span className="text-xs text-gray-400 font-mono">
-                              {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
 
 const DAYS_ORDER = [
   { key: 'Mon', label: 'Monday'    },
@@ -4501,9 +4368,6 @@ const [sessionForm,      setSessionForm]      = useState({
         </div>
       )}
 
-
-      {/* ── Report Tab ────────────────────────────────────────────────────── */}
-      {activeTab === 'Report' && <CoachReport />}
 
       {/* ── Settings Tab ──────────────────────────────────────────────────── */}
       {activeTab === 'Settings' && (
