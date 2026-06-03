@@ -207,12 +207,14 @@ function CoachReport() {
     return { from: fmt(mon), to: fmt(sun) }
   }
 
-  const [range,   setRange]   = useState(getWeekRange)
-  const [coaches, setCoaches] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [range,    setRange]    = useState(getWeekRange)
+  const [coaches,  setCoaches]  = useState([])
+  const [loading,  setLoading]  = useState(false)
+  const [expanded, setExpanded] = useState(new Set())
 
   const load = (from, to) => {
     setLoading(true)
+    setExpanded(new Set())
     coachingAPI.getCoachSummary(from, to)
       .then(({ data }) => setCoaches(data.coaches || []))
       .catch(() => setCoaches([]))
@@ -227,13 +229,26 @@ function CoachReport() {
     if (next.from && next.to && next.from <= next.to) load(next.from, next.to)
   }
 
-  const totalSolo  = coaches.reduce((s, c) => s + c.solo, 0)
-  const totalGrp   = coaches.reduce((s, c) => s + c.grp, 0)
-  const totalAll   = coaches.reduce((s, c) => s + c.total, 0)
+  const toggle = id => setExpanded(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  // Group sessions by date within a coach
+  const byDate = sessions => {
+    const map = {}
+    for (const s of sessions) {
+      const d = s.date?.slice(0, 10)
+      if (!map[d]) map[d] = []
+      map[d].push(s)
+    }
+    return Object.entries(map).sort(([a], [b]) => a.localeCompare(b))
+  }
 
   return (
     <div className="p-4 sm:p-6 max-w-2xl mx-auto animate-fade-in">
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <div className="flex items-center gap-3 mb-5 flex-wrap">
         <h2 className="text-base font-semibold text-gray-900">Coach Sessions</h2>
         <div className="flex items-center gap-2 ml-auto">
           <input type="date" value={range.from} onChange={e => handleChange('from', e.target.value)}
@@ -251,35 +266,63 @@ function CoachReport() {
       ) : coaches.length === 0 ? (
         <div className="text-center py-16 text-gray-400 text-sm">No sessions in this period.</div>
       ) : (
-        <div className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Coach</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">1-on-1</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Group</th>
-                <th className="text-center px-4 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {coaches.map(c => (
-                <tr key={c.coach_name} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-5 py-3.5 font-medium text-gray-900">{c.coach_name}</td>
-                  <td className="px-4 py-3.5 text-center text-gray-600">{c.solo}</td>
-                  <td className="px-4 py-3.5 text-center text-gray-600">{c.grp}</td>
-                  <td className="px-4 py-3.5 text-center font-semibold text-gray-900">{c.total}</td>
-                </tr>
-              ))}
-            </tbody>
-            <tfoot>
-              <tr className="bg-gray-50 border-t border-gray-200">
-                <td className="px-5 py-3 text-xs font-semibold text-gray-500 uppercase">Total</td>
-                <td className="px-4 py-3 text-center text-xs font-semibold text-gray-700">{totalSolo}</td>
-                <td className="px-4 py-3 text-center text-xs font-semibold text-gray-700">{totalGrp}</td>
-                <td className="px-4 py-3 text-center text-xs font-bold text-gray-900">{totalAll}</td>
-              </tr>
-            </tfoot>
-          </table>
+        <div className="space-y-2">
+          {coaches.map(c => {
+            const isOpen = expanded.has(c.coach_id)
+            const solo   = c.sessions.filter(s => s.type === 'solo').length
+            const grp    = c.sessions.filter(s => s.type === 'group').length
+            return (
+              <div key={c.coach_id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+                {/* Coach header row */}
+                <button onClick={() => toggle(c.coach_id)}
+                  className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center gap-3">
+                    <span className="font-medium text-gray-900">{c.coach_name}</span>
+                    <span className="text-xs text-gray-400">
+                      {solo > 0 && `${solo} 1-on-1`}
+                      {solo > 0 && grp > 0 && ' · '}
+                      {grp > 0 && `${grp} group`}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className="text-sm font-semibold text-gray-900">{c.sessions.length} sessions</span>
+                    <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
+                      fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </button>
+
+                {/* Sessions detail */}
+                {isOpen && (
+                  <div className="border-t border-gray-100">
+                    {byDate(c.sessions).map(([date, daySessions]) => (
+                      <div key={date}>
+                        <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
+                          <span className="text-xs font-semibold text-gray-500">
+                            {new Date(date + 'T12:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' })}
+                          </span>
+                        </div>
+                        {daySessions.map((s, i) => (
+                          <div key={i} className="flex items-center justify-between px-5 py-3 border-b border-gray-50 last:border-b-0">
+                            <div className="flex items-center gap-3">
+                              <span className={`text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded ${
+                                s.type === 'group' ? 'bg-blue-50 text-blue-600' : 'bg-emerald-50 text-emerald-600'
+                              }`}>{s.type === 'group' ? 'Group' : '1-on-1'}</span>
+                              <span className="text-sm text-gray-900">{s.student_names}</span>
+                            </div>
+                            <span className="text-xs text-gray-400 font-mono">
+                              {fmtTime(s.start_time)} – {fmtTime(s.end_time)}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
     </div>

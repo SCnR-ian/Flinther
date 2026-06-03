@@ -2779,4 +2779,65 @@ router.post('/coach-leave-requests/:id/reject', requireAuth, requireAdmin, async
   }
 })
 
+// GET /api/coaching/coach-summary?from=YYYY-MM-DD&to=YYYY-MM-DD  (admin only)
+// Returns confirmed sessions grouped by coach, with per-session date/time/students/type.
+router.get('/coach-summary', requireAuth, requireAdmin, async (req, res) => {
+  const clubId = req.club?.id ?? 1
+  const { from, to } = req.query
+  if (!from || !to) return res.status(400).json({ message: 'from and to dates are required.' })
+  try {
+    const { rows } = await pool.query(
+      `SELECT
+         co.id         AS coach_id,
+         co.name       AS coach_name,
+         cs.id         AS session_id,
+         cs.group_id,
+         cs.date,
+         cs.start_time,
+         cs.end_time,
+         u.name        AS student_name
+       FROM coaching_sessions cs
+       JOIN coaches co ON co.id = cs.coach_id
+       JOIN users   u  ON u.id  = cs.student_id
+       WHERE cs.status = 'confirmed'
+         AND cs.club_id = $3
+         AND cs.date >= $1 AND cs.date <= $2
+       ORDER BY co.name ASC, cs.date ASC, cs.start_time ASC, cs.group_id ASC NULLS LAST`,
+      [from, to, clubId]
+    )
+
+    const byCoach = {}
+    const groupEntries = {}
+    for (const row of rows) {
+      if (!byCoach[row.coach_id]) {
+        byCoach[row.coach_id] = { coach_id: row.coach_id, coach_name: row.coach_name, sessions: [] }
+      }
+      if (row.group_id) {
+        const gkey = `${row.coach_id}:${row.group_id}`
+        if (groupEntries[gkey]) {
+          groupEntries[gkey].student_names += ', ' + row.student_name
+          continue
+        }
+        const entry = {
+          id: row.session_id, type: 'group',
+          date: row.date, start_time: row.start_time, end_time: row.end_time,
+          student_names: row.student_name,
+        }
+        groupEntries[gkey] = entry
+        byCoach[row.coach_id].sessions.push(entry)
+      } else {
+        byCoach[row.coach_id].sessions.push({
+          id: row.session_id, type: 'solo',
+          date: row.date, start_time: row.start_time, end_time: row.end_time,
+          student_names: row.student_name,
+        })
+      }
+    }
+    res.json({ coaches: Object.values(byCoach) })
+  } catch (e) {
+    console.error('[coach-summary]', e)
+    res.status(500).json({ message: 'Server error.' })
+  }
+})
+
 module.exports = router
