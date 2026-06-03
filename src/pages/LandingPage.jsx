@@ -93,81 +93,6 @@ const C = {
     },
     footer: { tag: "Club management for table tennis.", copy: "© 2026 Flinther" },
   },
-  zh: {
-    nav: { features: "功能", pricing: "定價", login: "登入", cta: "免費開始", dashboard: "後台", logout: "登出" },
-    hero: {
-      pre: "桌球館管理系統",
-      title: "管好球館，\n不再靠試算表。",
-      sub: "場地預訂、教練排課、社交活動——管理員和教練在同一個地方搞定所有事。",
-      cta: "開始使用",
-      hint: "專為桌球館打造",
-    },
-    feat: {
-      title: "你的團隊需要的一切。",
-      sub: "一個工具給管理員和教練用。不再用試算表。",
-      items: [
-        { title: "場地預訂",    sub: "用日曆檢視所有場地預訂狀況，一目了然知道哪些時段有空。", emoji: "🏓" },
-        { title: "教練排課",    sub: "安排一對一和團體課。教練登入後看到自己的專屬課表。", emoji: "🎯" },
-        { title: "社交活動",    sub: "建立社交場次、管理參與者。適合開放式團體練習。", emoji: "🤝" },
-        { title: "會員管理",    sub: "新增和管理會員資料，追蹤誰在跟哪位教練上課。", emoji: "👥" },
-        { title: "共享班表",    sub: "把即時班表連結分享給全體教練——不用登入，隨時是最新狀態。", emoji: "📅" },
-        { title: "衝突偵測",    sub: "修改開放時間或球桌數量前，系統自動找出受影響的課程。", emoji: "⚡" },
-      ],
-    },
-    how: {
-      title: "從申請到上線，\n只需幾分鐘。",
-      steps: [
-        { n: "01", title: "建立帳號",  sub: "用 Email 註冊，不需要信用卡。" },
-        { n: "02", title: "設定球館",  sub: "填入名稱、球桌數量與營業時間。" },
-        { n: "03", title: "正式上線",  sub: "獲得 yourclub.flinther.com，分享出去，開始接受預訂。" },
-      ],
-    },
-    pricing: {
-      title: "簡單的定價。",
-      sub: "搶先體驗期間完全免費。",
-      plans: [
-        {
-          name: "免費試用",
-          price: "$0",
-          period: "/月",
-          desc: "全功能開放，無需信用卡。",
-          dark: true,
-          badge: "現在可用",
-          features: ["無限會員", "無限球桌", "球桌預訂", "教練系統", "線上付款", "數據分析"],
-          cta: "開始免費試用",
-          href: "/register",
-        },
-        {
-          name: "Pro",
-          price: "即將推出",
-          period: "",
-          desc: "適合成長中的球館。",
-          dark: false,
-          badge: "即將推出",
-          comingSoon: true,
-          features: ["包含免費版全部功能", "優先支援", "自訂網域", "進階數據分析"],
-          cta: "即將推出",
-        },
-        {
-          name: "企業版",
-          price: "自訂報價",
-          period: "",
-          desc: "適合多場館經營者。",
-          dark: false,
-          badge: "即將推出",
-          comingSoon: true,
-          features: ["多場館管理", "API 存取", "專屬支援", "客製整合"],
-          cta: "即將推出",
-        },
-      ],
-    },
-    cta2: {
-      title: "簡單。專注。專為桌球打造。",
-      sub: "管理員和教練需要的都在這，不需要的一概沒有。",
-      btn: "開始使用",
-    },
-    footer: { tag: "桌球館管理系統", copy: "© 2026 Flinther" },
-  },
 };
 
 function Reveal({ children, delay = 0, className = "" }) {
@@ -243,10 +168,9 @@ function Screenshots() {
 }
 
 export default function LandingPage() {
-  const [lang, setLang] = useState("en");
   const [loggedIn, setLoggedIn] = useState(false);
   const [dashboardHref, setDashboardHref] = useState("/dashboard");
-  const c = C[lang];
+  const c = C.en;
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -281,12 +205,6 @@ export default function LandingPage() {
             <a href="#pricing"  className="hover:text-gray-900 transition-colors">{c.nav.pricing}</a>
           </div>
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setLang(l => l === "en" ? "zh" : "en")}
-              className="text-xs text-gray-400 hover:text-gray-700 px-2 py-1 rounded-lg hover:bg-gray-100 transition-colors"
-            >
-              {lang === "en" ? "中文" : "EN"}
-            </button>
             {loggedIn ? (
               <>
                 <a href={dashboardHref} className="text-sm text-gray-500 hover:text-gray-900 px-3 py-1.5 transition-colors">
@@ -330,7 +248,7 @@ export default function LandingPage() {
             {c.hero.cta}
           </a>
           <a href="#features" className="text-sm text-gray-500 hover:text-gray-900 px-6 py-3.5 transition-colors">
-            {lang === "en" ? "See how it works →" : "了解功能 →"}
+            See how it works →
           </a>
         </div>
         <p className="text-xs text-gray-400 mt-4">{c.hero.hint}</p>
