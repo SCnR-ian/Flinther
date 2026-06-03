@@ -2780,16 +2780,25 @@ router.post('/coach-leave-requests/:id/reject', requireAuth, requireAdmin, async
 })
 
 // GET /api/coaching/coach-summary?from=YYYY-MM-DD&to=YYYY-MM-DD  (admin only)
-// Returns confirmed sessions grouped by coach, with per-session date/time/students/type.
+// Returns ALL active coaches grouped with their confirmed sessions in the date range.
 router.get('/coach-summary', requireAuth, requireAdmin, async (req, res) => {
   const clubId = req.club?.id ?? 1
   const { from, to } = req.query
   if (!from || !to) return res.status(400).json({ message: 'from and to dates are required.' })
   try {
-    const { rows } = await pool.query(
+    // Step 1: all active coaches for this club
+    const { rows: coachRows } = await pool.query(
+      `SELECT id AS coach_id, name AS coach_name
+       FROM coaches
+       WHERE club_id = $1
+       ORDER BY name ASC`,
+      [clubId]
+    )
+
+    // Step 2: confirmed sessions in the date range
+    const { rows: sessionRows } = await pool.query(
       `SELECT
          co.id         AS coach_id,
-         co.name       AS coach_name,
          cs.id         AS session_id,
          cs.group_id,
          cs.date,
@@ -2802,18 +2811,24 @@ router.get('/coach-summary', requireAuth, requireAdmin, async (req, res) => {
        WHERE cs.status = 'confirmed'
          AND cs.club_id = $3
          AND cs.date >= $1 AND cs.date <= $2
-       ORDER BY co.name ASC, cs.date ASC, cs.start_time ASC, cs.group_id ASC NULLS LAST`,
+       ORDER BY cs.date ASC, cs.start_time ASC, cs.group_id ASC NULLS LAST`,
       [from, to, clubId]
     )
 
+    // Step 3: build map keyed by coach_id, pre-seeded with all coaches
     const byCoach = {}
+    for (const c of coachRows) {
+      byCoach[c.coach_id] = { coach_id: c.coach_id, coach_name: c.coach_name, sessions: [] }
+    }
+
+    // Step 4: group sessions per coach, deduplicating group sessions per date
     const groupEntries = {}
-    for (const row of rows) {
-      if (!byCoach[row.coach_id]) {
-        byCoach[row.coach_id] = { coach_id: row.coach_id, coach_name: row.coach_name, sessions: [] }
-      }
+    for (const row of sessionRows) {
+      const coach = byCoach[row.coach_id]
+      if (!coach) continue
       if (row.group_id) {
-        const gkey = `${row.coach_id}:${row.group_id}`
+        // Key includes date so each weekly occurrence counts as a separate session
+        const gkey = `${row.coach_id}:${row.group_id}:${row.date?.slice(0, 10)}`
         if (groupEntries[gkey]) {
           groupEntries[gkey].student_names += ', ' + row.student_name
           continue
@@ -2824,9 +2839,9 @@ router.get('/coach-summary', requireAuth, requireAdmin, async (req, res) => {
           student_names: row.student_name,
         }
         groupEntries[gkey] = entry
-        byCoach[row.coach_id].sessions.push(entry)
+        coach.sessions.push(entry)
       } else {
-        byCoach[row.coach_id].sessions.push({
+        coach.sessions.push({
           id: row.session_id, type: 'solo',
           date: row.date, start_time: row.start_time, end_time: row.end_time,
           student_names: row.student_name,
