@@ -268,9 +268,10 @@ function CoachReport() {
       ) : (
         <div className="space-y-2">
           {coaches.map(c => {
-            const isOpen = expanded.has(c.coach_id)
-            const solo   = c.sessions.filter(s => s.type === 'solo').length
-            const grp    = c.sessions.filter(s => s.type === 'group').length
+            const isOpen   = expanded.has(c.coach_id)
+            const sessions = c.sessions || []
+            const solo     = sessions.filter(s => s.type === 'solo').length
+            const grp      = sessions.filter(s => s.type === 'group').length
             return (
               <div key={c.coach_id} className="bg-white border border-gray-200 rounded-2xl overflow-hidden">
                 {/* Coach header row */}
@@ -285,7 +286,7 @@ function CoachReport() {
                     </span>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className="text-sm font-semibold text-gray-900">{c.sessions.length} sessions</span>
+                    <span className="text-sm font-semibold text-gray-900">{sessions.length} sessions</span>
                     <svg className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`}
                       fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
@@ -296,7 +297,7 @@ function CoachReport() {
                 {/* Sessions detail */}
                 {isOpen && (
                   <div className="border-t border-gray-100">
-                    {byDate(c.sessions).map(([date, daySessions]) => (
+                    {byDate(sessions).map(([date, daySessions]) => (
                       <div key={date}>
                         <div className="px-5 py-2 bg-gray-50 border-b border-gray-100">
                           <span className="text-xs font-semibold text-gray-500">
