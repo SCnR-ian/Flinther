@@ -122,7 +122,7 @@ router.put('/members/:id/role', async (req, res) => {
       try { await client.query('DELETE FROM coaches WHERE user_id=$1', [req.params.id]) } catch {}
     }
     res.json({ member: safeUser(rows[0]) })
-  } catch (err) { res.status(500).json({ message: err.message ?? 'Server error.' }) }
+  } catch (err) { console.error('[admin] role update error:', err.message); res.status(500).json({ message: 'Server error.' }) }
   finally { client.release() }
 })
 

@@ -12,8 +12,9 @@ const pool   = require('../db')
 const bcrypt = require('bcryptjs')
 const { requireSuperAdmin } = require('../middleware/superAdmin')
 const { bustClubCache } = require('../middleware/tenant')
+const { authLimiter } = require('../middleware/rateLimit')
 
-router.use(requireSuperAdmin)
+router.use(authLimiter, requireSuperAdmin)
 
 // ─── GET /api/super-admin/clubs ───────────────────────────────────────────────
 router.get('/clubs', async (req, res) => {
