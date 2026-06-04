@@ -39,12 +39,16 @@ router.post('/register', authLimiter, async (req, res) => {
 
   try {
     const hash = await bcrypt.hash(password, 12)
+    // New accounts start unverified — they must click the emailed link before
+    // they can log in.
     const { rows } = await pool.query(
-      'INSERT INTO users (name, email, password_hash, phone, club_id, platform_owner) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+      'INSERT INTO users (name, email, password_hash, phone, club_id, platform_owner, email_verified) VALUES ($1,$2,$3,$4,$5,$6,FALSE) RETURNING *',
       [name, email, hash, phone || null, clubId, isPlatformOwner]
     )
     const user = rows[0]
-    res.status(201).json({ token: sign(user), user: safeUser(user) })
+    await sendVerificationEmail(user)
+    // Do NOT return a token — the account is inactive until verified.
+    res.status(201).json({ needsVerification: true })
   } catch (err) {
     if (err.code === '23505')
       return res.status(409).json({ message: 'An account with that email already exists.' })
@@ -52,6 +56,31 @@ router.post('/register', authLimiter, async (req, res) => {
     res.status(500).json({ message: 'Server error.' })
   }
 })
+
+// Generates a one-time token, stores it, and emails the verification link.
+async function sendVerificationEmail(user) {
+  const token = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
+  await pool.query('DELETE FROM email_verification_tokens WHERE user_id = $1', [user.id])
+  await pool.query(
+    'INSERT INTO email_verification_tokens (user_id, token, expires_at) VALUES ($1,$2,$3)',
+    [user.id, token, expiresAt]
+  )
+  const verifyUrl = `${FRONTEND_URL}/verify-email?token=${token}`
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to: user.email,
+    subject: 'Verify your email',
+    html: `
+      <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;">
+        <h2 style="font-size:20px;font-weight:600;margin-bottom:8px;">Verify your email</h2>
+        <p style="color:#555;margin-bottom:24px;">Hi ${user.name}, welcome to Flinther. Click the button below to activate your account. This link expires in 24 hours.</p>
+        <a href="${verifyUrl}" style="display:inline-block;background:#000;color:#fff;padding:12px 28px;border-radius:999px;text-decoration:none;font-size:14px;letter-spacing:0.05em;">Verify Email</a>
+        <p style="color:#aaa;font-size:12px;margin-top:24px;">If you didn't create this account, you can safely ignore this email.</p>
+      </div>
+    `,
+  })
+}
 
 // POST /api/auth/login
 // `identifier` accepts either an email address or a phone number
@@ -85,6 +114,9 @@ router.post('/login', authLimiter, async (req, res) => {
     const ok = await bcrypt.compare(password, user.password_hash)
     if (!ok) return res.status(401).json({ message: 'Invalid email/phone or password.' })
 
+    if (user.email_verified === false)
+      return res.status(403).json({ message: 'Please verify your email before logging in. Check your inbox for the verification link.', needsVerification: true })
+
     res.json({ token: sign(user), user: safeUser(user) })
   } catch (err) {
     console.error(err)
@@ -114,6 +146,49 @@ router.get('/sso-callback', async (req, res) => {
     res.json({ token: sign(rows[0]), user: safeUser(rows[0]) })
   } catch {
     res.status(401).json({ message: 'Invalid or expired SSO token.' })
+  }
+})
+
+// GET /api/auth/verify-email?token=XXX — activate the account
+router.get('/verify-email', async (req, res) => {
+  const { token } = req.query
+  if (!token) return res.status(400).json({ message: 'Missing token.' })
+  try {
+    const { rows } = await pool.query(
+      'SELECT id, user_id, expires_at, used_at FROM email_verification_tokens WHERE token = $1',
+      [token]
+    )
+    if (rows.length === 0) return res.status(400).json({ message: 'Invalid verification link.' })
+    const row = rows[0]
+    if (row.used_at) return res.status(400).json({ message: 'This link has already been used.' })
+    if (new Date(row.expires_at) < new Date())
+      return res.status(400).json({ message: 'This verification link has expired.' })
+
+    await pool.query('UPDATE users SET email_verified = TRUE WHERE id = $1', [row.user_id])
+    await pool.query('UPDATE email_verification_tokens SET used_at = NOW() WHERE id = $1', [row.id])
+    res.json({ message: 'Email verified. You can now log in.' })
+  } catch (err) {
+    console.error('[auth] verify-email error:', err.message)
+    res.status(500).json({ message: 'Server error.' })
+  }
+})
+
+// POST /api/auth/resend-verification — re-send the verification email
+router.post('/resend-verification', authLimiter, async (req, res) => {
+  const email = req.body.email?.toLowerCase().trim()
+  if (!email) return res.status(400).json({ message: 'Email is required.' })
+  try {
+    // Scope to club when present, otherwise match a platform account.
+    const { rows } = req.club
+      ? await pool.query('SELECT * FROM users WHERE email=$1 AND club_id=$2', [email, req.club.id])
+      : await pool.query('SELECT * FROM users WHERE email=$1 AND club_id IS NULL', [email])
+    const user = rows[0]
+    // Always 200 to avoid email enumeration; only send if unverified.
+    if (user && user.email_verified === false) await sendVerificationEmail(user)
+    res.json({ message: 'If that account exists and is unverified, a new link has been sent.' })
+  } catch (err) {
+    console.error('[auth] resend-verification error:', err.message)
+    res.status(500).json({ message: 'Server error.' })
   }
 })
 

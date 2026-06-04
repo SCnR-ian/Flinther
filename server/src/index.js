@@ -452,6 +452,22 @@ async function runMigrations() {
     `ALTER TABLE club_articles ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb`,
     `ALTER TABLE users ALTER COLUMN club_id DROP NOT NULL`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS platform_owner BOOLEAN NOT NULL DEFAULT FALSE`,
+    // ── Email verification ───────────────────────────────────────────────────
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE`,
+    // One-time backfill: every account that existed before this feature
+    // shipped (fixed cutoff) is treated as verified so we don't lock out
+    // current owners/members. Using a fixed timestamp — not NOW() — keeps this
+    // idempotent: re-running on restart will not re-verify new sign-ups.
+    `UPDATE users SET email_verified = TRUE WHERE created_at < TIMESTAMPTZ '2026-06-04 00:00:00+00'`,
+    `CREATE TABLE IF NOT EXISTS email_verification_tokens (
+       id         SERIAL PRIMARY KEY,
+       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       token      VARCHAR(64) NOT NULL UNIQUE,
+       expires_at TIMESTAMPTZ NOT NULL,
+       used_at    TIMESTAMPTZ,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+     )`,
+    `CREATE INDEX IF NOT EXISTS idx_evt_user ON email_verification_tokens(user_id)`,
   ]
   for (const sql of patches) {
     try { await pool.query(sql) } catch (e) { console.error('Migration warning:', e.message) }
