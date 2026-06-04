@@ -47,19 +47,16 @@ async function findOrCreateOAuthUser({
     }
   }
 
-  // 3. Create new user in this club
+  // 3. Create new user in this club. OAuth providers have already verified the
+  // email address, so the account is created pre-verified.
   const insert = await pool.query(
-    `INSERT INTO users (name, email, ${idCol}, avatar_url, club_id)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    `INSERT INTO users (name, email, ${idCol}, avatar_url, club_id, email_verified)
+     VALUES ($1, $2, $3, $4, $5, TRUE) RETURNING *`,
     [name, email || null, providerId, avatarUrl || null, clubId],
   );
   return insert.rows[0];
 }
 
-console.log("=== GOOGLE ENV DEBUG ===");
-console.log("CLIENT_ID:", process.env.GOOGLE_CLIENT_ID);
-console.log("CALLBACK:", process.env.GOOGLE_CALLBACK_URL);
-console.log("NODE_ENV:", process.env.NODE_ENV);
 // ── Google ────────────────────────────────────────────────────────────────────
 passport.use(
   new GoogleStrategy(

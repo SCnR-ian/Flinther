@@ -1,37 +1,67 @@
 require('dotenv').config()
 const express        = require('express')
 const cors           = require('cors')
+const helmet         = require('helmet')
 const path           = require('path')
 const session        = require('express-session')
 const passport       = require('./config/passport')
 const cron           = require('node-cron')
+const { apiLimiter } = require('./middleware/rateLimit')
+
+// ── Required secrets ──────────────────────────────────────────────────────────
+// Fail fast in production rather than silently falling back to a guessable
+// default secret (which would let anyone forge sessions / tokens).
+if (process.env.NODE_ENV === 'production') {
+  for (const key of ['JWT_SECRET', 'SESSION_SECRET']) {
+    if (!process.env[key]) {
+      console.error(`FATAL: ${key} must be set in production.`)
+      process.exit(1)
+    }
+  }
+}
 
 const app  = express()
 const PORT = process.env.PORT || 8000
 
 // ── Middleware ────────────────────────────────────────────────────────────────
 app.set('trust proxy', 1)   // required on Render (runs behind a reverse proxy)
+app.use(helmet())           // secure HTTP response headers
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:5174',
   process.env.FRONTEND_URL,
 ].filter(Boolean)
 
+const isDev = process.env.NODE_ENV !== 'production'
 app.use(cors({
   origin: (origin, cb) => {
     // Allow requests with no origin (mobile apps, curl, server-to-server)
     if (!origin) return cb(null, true)
-    if (ALLOWED_ORIGINS.some(o => origin === o) || origin.endsWith('.vercel.app') || origin.endsWith('.flinther.com') || origin === 'https://flinther.com' || origin === 'http://flinther.com' || origin.endsWith('.devtunnels.ms') || /^http:\/\/[a-z0-9-]+\.localhost(:\d+)?$/.test(origin) || /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin))
-      return cb(null, true)
+    // Production-allowed origins
+    const prodAllowed =
+      ALLOWED_ORIGINS.some(o => origin === o) ||
+      origin.endsWith('.vercel.app') ||
+      origin.endsWith('.flinther.com') ||
+      origin === 'https://flinther.com' ||
+      origin === 'http://flinther.com'
+    // Dev-only conveniences (tunnels, LAN IPs, *.localhost) — never in prod,
+    // since with credentials:true these widen the attack surface needlessly.
+    const devAllowed = isDev && (
+      origin.endsWith('.devtunnels.ms') ||
+      /^http:\/\/[a-z0-9-]+\.localhost(:\d+)?$/.test(origin) ||
+      /^http:\/\/(localhost|127\.0\.0\.1|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+)(:\d+)?$/.test(origin)
+    )
+    if (prodAllowed || devAllowed) return cb(null, true)
     cb(new Error(`CORS: origin ${origin} not allowed`))
   },
   credentials: true,
 }))
 app.use(express.json({ limit: '15mb' }))
+app.use('/api', apiLimiter)   // general safety-net rate limit
 
 // Session is only needed during the brief OAuth redirect flow
 app.use(session({
-  secret:            process.env.SESSION_SECRET || 'dev_secret',
+  secret:            process.env.SESSION_SECRET || 'dev_secret_change_me',
   resave:            false,
   saveUninitialized: false,
   cookie: { secure: process.env.NODE_ENV === 'production', maxAge: 5 * 60 * 1000 },
@@ -422,6 +452,22 @@ async function runMigrations() {
     `ALTER TABLE club_articles ADD COLUMN IF NOT EXISTS gallery_images JSONB DEFAULT '[]'::jsonb`,
     `ALTER TABLE users ALTER COLUMN club_id DROP NOT NULL`,
     `ALTER TABLE users ADD COLUMN IF NOT EXISTS platform_owner BOOLEAN NOT NULL DEFAULT FALSE`,
+    // ── Email verification ───────────────────────────────────────────────────
+    `ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE`,
+    // One-time backfill: every account that existed before this feature
+    // shipped (fixed cutoff) is treated as verified so we don't lock out
+    // current owners/members. Using a fixed timestamp — not NOW() — keeps this
+    // idempotent: re-running on restart will not re-verify new sign-ups.
+    `UPDATE users SET email_verified = TRUE WHERE created_at < TIMESTAMPTZ '2026-06-04 00:00:00+00'`,
+    `CREATE TABLE IF NOT EXISTS email_verification_tokens (
+       id         SERIAL PRIMARY KEY,
+       user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+       token      VARCHAR(64) NOT NULL UNIQUE,
+       expires_at TIMESTAMPTZ NOT NULL,
+       used_at    TIMESTAMPTZ,
+       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+     )`,
+    `CREATE INDEX IF NOT EXISTS idx_evt_user ON email_verification_tokens(user_id)`,
   ]
   for (const sql of patches) {
     try { await pool.query(sql) } catch (e) { console.error('Migration warning:', e.message) }

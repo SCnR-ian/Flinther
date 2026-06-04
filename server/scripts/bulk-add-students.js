@@ -51,7 +51,7 @@ async function main() {
 
     try {
       await pool.query(
-        'INSERT INTO users (name, email, password_hash) VALUES ($1, $2, $3)',
+        'INSERT INTO users (name, email, password_hash, email_verified) VALUES ($1, $2, $3, TRUE)',
         [name, email, hash]
       )
       console.log(`✓ Added: ${name} <${email}>`)

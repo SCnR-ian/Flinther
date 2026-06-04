@@ -78,13 +78,38 @@ router.patch('/current', requireAuth, requireAdmin, async (req, res) => {
 
 // ── POST /api/clubs/register ─────────────────────────────────────────────────
 // Self-service club registration. The authenticated user becomes the club admin.
+// Subdomains we must never let a tenant claim (platform routes, common
+// infra hostnames, anything that could be used to impersonate the platform).
+const RESERVED_SUBDOMAINS = new Set([
+  'www', 'api', 'app', 'admin', 'mail', 'smtp', 'ftp', 'ns', 'ns1', 'ns2',
+  'dashboard', 'platform', 'flinther', 'support', 'help', 'status', 'blog',
+  'staging', 'dev', 'test', 'demo', 'static', 'cdn', 'assets', 'login',
+  'register', 'auth', 'account', 'billing', 'payments', 'internal', 'root',
+])
+
 router.post('/register', requireAuth, upload.single('logo'), async (req, res) => {
-  const { name, subdomain, courts, schedule: scheduleJson } = req.body
+  const { name, courts, schedule: scheduleJson } = req.body
+  const subdomain = (req.body.subdomain || '').toLowerCase().trim()
 
   if (!name || !subdomain)
     return res.status(400).json({ message: 'Club name and subdomain are required.' })
 
-  const numCourts = Math.max(1, parseInt(courts, 10) || 4)
+  // Strict DNS-label format: 3–63 chars, a–z/0–9/hyphen, no leading/trailing hyphen.
+  if (!/^[a-z0-9](?:[a-z0-9-]{1,61}[a-z0-9])$/.test(subdomain))
+    return res.status(400).json({ message: 'Subdomain must be 3–63 characters: lowercase letters, numbers and hyphens only.' })
+  if (RESERVED_SUBDOMAINS.has(subdomain))
+    return res.status(409).json({ message: 'That URL is reserved. Please choose another.' })
+
+  // Each owner may only run a limited number of clubs (anti-abuse).
+  const { rows: [{ count }] } = await pool.query(
+    `SELECT COUNT(*)::int AS count FROM clubs c
+     JOIN users u ON u.club_id = c.id AND u.id = $1 AND u.role = 'admin'`,
+    [req.user.id]
+  )
+  if (count >= 5)
+    return res.status(429).json({ message: 'You have reached the maximum number of clubs for one account.' })
+
+  const numCourts = Math.min(50, Math.max(1, parseInt(courts, 10) || 4))
   // schedule: { Mon: { open: true, from: '09:00', to: '22:00' }, ... }
   const scheduleData = (() => { try { return JSON.parse(scheduleJson) } catch { return {} } })()
 

@@ -12,8 +12,9 @@ const pool   = require('../db')
 const bcrypt = require('bcryptjs')
 const { requireSuperAdmin } = require('../middleware/superAdmin')
 const { bustClubCache } = require('../middleware/tenant')
+const { authLimiter } = require('../middleware/rateLimit')
 
-router.use(requireSuperAdmin)
+router.use(authLimiter, requireSuperAdmin)
 
 // ─── GET /api/super-admin/clubs ───────────────────────────────────────────────
 router.get('/clubs', async (req, res) => {
@@ -99,8 +100,8 @@ router.post('/clubs', async (req, res) => {
     // 6. Create admin user
     const hash = await bcrypt.hash(admin_password, 10)
     const { rows: [adminUser] } = await client.query(
-      `INSERT INTO users (name, email, password_hash, role, club_id)
-       VALUES ($1, $2, $3, 'admin', $4) RETURNING id`,
+      `INSERT INTO users (name, email, password_hash, role, club_id, email_verified)
+       VALUES ($1, $2, $3, 'admin', $4, TRUE) RETURNING id`,
       [admin_name || name + ' Admin', admin_email, hash, clubId]
     )
 

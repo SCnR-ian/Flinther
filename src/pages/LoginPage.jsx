@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
+import { authAPI } from '@/api/api'
 
 
 export default function LoginPage() {
@@ -12,6 +13,8 @@ export default function LoginPage() {
 
   const [form, setForm]     = useState({ identifier: '', password: '' })
   const [errors, setErrors] = useState({})
+  const [unverified, setUnverified] = useState(false)
+  const [resendState, setResendState] = useState('idle') // idle | sending | sent
 
   const validate = () => {
     const e = {}
@@ -23,7 +26,18 @@ export default function LoginPage() {
   const handleChange = (e) => {
     setForm(f => ({ ...f, [e.target.name]: e.target.value }))
     clearError()
+    setUnverified(false)
+    setResendState('idle')
     setErrors(er => ({ ...er, [e.target.name]: '' }))
+  }
+
+  const handleResend = async () => {
+    if (resendState === 'sending') return
+    setResendState('sending')
+    try {
+      await authAPI.resendVerification(form.identifier)
+    } catch { /* enumeration-safe: backend always succeeds */ }
+    setResendState('sent')
   }
 
   const handleSubmit = async (e) => {
@@ -38,6 +52,8 @@ export default function LoginPage() {
                  : (u?.role === 'admin' || u?.platform_owner) ? '/admin'
                  : from
       navigate(dest, { replace: true })
+    } else {
+      setUnverified(Boolean(result.needsVerification))
     }
   }
 
@@ -78,6 +94,27 @@ export default function LoginPage() {
         {error && (
           <div className="mb-4 px-4 py-3 bg-red-50 border border-red-100 text-red-600 text-sm rounded-xl">
             {error}
+          </div>
+        )}
+
+        {/* Unverified account — offer to resend the verification email */}
+        {unverified && (
+          <div className="mb-4 px-4 py-3 bg-amber-50 border border-amber-100 rounded-xl text-sm">
+            {resendState === 'sent' ? (
+              <p className="text-amber-700">✓ Verification email sent. Please check your inbox (and spam folder).</p>
+            ) : (
+              <p className="text-amber-700">
+                Your email isn't verified yet.{' '}
+                <button
+                  type="button"
+                  onClick={handleResend}
+                  disabled={resendState === 'sending'}
+                  className="underline underline-offset-2 font-medium hover:text-amber-900 disabled:opacity-50"
+                >
+                  {resendState === 'sending' ? 'Sending…' : 'Resend verification email'}
+                </button>
+              </p>
+            )}
           </div>
         )}
 

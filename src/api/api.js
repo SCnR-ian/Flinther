@@ -82,6 +82,7 @@ export const authAPI = {
   getSSOToken:    ()      => api.post('/auth/sso-token'),
   verifySSOToken: (token) => api.get(`/auth/sso-callback?token=${token}`),
   verifyEmail:    (token) => api.get(`/auth/verify-email?token=${token}`),
+  resendVerification: (email) => api.post('/auth/resend-verification', { email }),
   getInviteInfo:  (token) => api.get(`/auth/invite-info?token=${token}`),
 };
 

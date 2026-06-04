@@ -396,13 +396,18 @@ router.post("/authorize-extension", requireAuth, async (req, res) => {
 router.post("/capture/:intentId", requireAuth, async (req, res) => {
   if (req.user.role !== "admin")
     return res.status(403).json({ message: "Admins only." });
+  const clubId = req.club?.id ?? 1;
   try {
     const stripe = getStripe();
+    // Verify the intent belongs to this admin's club before charging it.
+    const existing = await stripe.paymentIntents.retrieve(req.params.intentId);
+    if (Number(existing.metadata?.club_id) !== clubId)
+      return res.status(403).json({ message: "This payment does not belong to your club." });
     const intent = await stripe.paymentIntents.capture(req.params.intentId);
     res.json({ status: intent.status, amount: intent.amount });
   } catch (err) {
     console.error("[payments] capture error:", err.message);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Failed to capture payment." });
   }
 });
 
@@ -411,13 +416,18 @@ router.post("/capture/:intentId", requireAuth, async (req, res) => {
 router.post("/void/:intentId", requireAuth, async (req, res) => {
   if (req.user.role !== "admin")
     return res.status(403).json({ message: "Admins only." });
+  const clubId = req.club?.id ?? 1;
   try {
     const stripe = getStripe();
+    // Verify the intent belongs to this admin's club before cancelling it.
+    const existing = await stripe.paymentIntents.retrieve(req.params.intentId);
+    if (Number(existing.metadata?.club_id) !== clubId)
+      return res.status(403).json({ message: "This payment does not belong to your club." });
     await stripe.paymentIntents.cancel(req.params.intentId);
     res.json({ message: "Authorization released." });
   } catch (err) {
     console.error("[payments] void error:", err.message);
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: "Failed to release authorization." });
   }
 });
 

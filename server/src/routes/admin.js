@@ -45,8 +45,9 @@ router.post('/members', async (req, res) => {
   try {
     const clubId = req.club?.id ?? 1
     const hash = await bcrypt.hash(password, 12)
+    // Created by an admin who vouches for the member → pre-verified.
     const { rows } = await pool.query(
-      'INSERT INTO users (name, email, password_hash, phone, club_id) VALUES ($1,$2,$3,$4,$5) RETURNING *',
+      'INSERT INTO users (name, email, password_hash, phone, club_id, email_verified) VALUES ($1,$2,$3,$4,$5,TRUE) RETURNING *',
       [name.trim(), email.toLowerCase().trim(), hash, phone?.trim() || null, clubId]
     )
     res.status(201).json({ member: safeUser(rows[0]) })
@@ -122,7 +123,7 @@ router.put('/members/:id/role', async (req, res) => {
       try { await client.query('DELETE FROM coaches WHERE user_id=$1', [req.params.id]) } catch {}
     }
     res.json({ member: safeUser(rows[0]) })
-  } catch (err) { res.status(500).json({ message: err.message ?? 'Server error.' }) }
+  } catch (err) { console.error('[admin] role update error:', err.message); res.status(500).json({ message: 'Server error.' }) }
   finally { client.release() }
 })
 
