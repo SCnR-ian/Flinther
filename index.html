@@ -26,6 +26,20 @@
 
     <!-- Canonical -->
     <link rel="canonical" href="https://flinther.com/" />
+
+    <!-- Structured data: Google reads this straight from the raw HTML (no JS needed) -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Flinther",
+      "applicationCategory": "BusinessApplication",
+      "operatingSystem": "Web",
+      "description": "Table tennis club management software. Court bookings, coaching schedules, social sessions and member management in one place for club admins and coaches.",
+      "url": "https://flinther.com/",
+      "offers": { "@type": "Offer", "price": "0", "priceCurrency": "AUD" }
+    }
+    </script>
     <!-- Stripe.js – loaded globally so BookingPage can use window.Stripe() without npm -->
     <script src="https://js.stripe.com/v3/"></script>
     <!-- Fonts -->
@@ -34,7 +48,35 @@
     <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700;800;900&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;1,9..40,400&display=swap" rel="stylesheet" />
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!--
+        Static SEO fallback. Search engines read this from the raw HTML before any
+        JavaScript runs; React replaces it with the live app on mount. Keep the
+        wording consistent with the real landing page (not cloaking).
+      -->
+      <main style="max-width:760px;margin:0 auto;padding:64px 24px;font-family:'DM Sans',sans-serif;color:#111;line-height:1.6;">
+        <p style="font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#888;margin:0 0 12px;">Built for table tennis clubs</p>
+        <h1 style="font-family:'Kanit',sans-serif;font-size:40px;line-height:1.1;margin:0 0 16px;">Run your table tennis club, not spreadsheets.</h1>
+        <p style="font-size:18px;color:#444;margin:0 0 28px;">Flinther is club management software for table tennis clubs — court bookings, coaching schedules, social sessions and member management, all in one place for your admins and coaches.</p>
+        <p style="margin:0 0 40px;">
+          <a href="/register" style="display:inline-block;background:#4b6bfb;color:#fff;padding:12px 24px;border-radius:10px;text-decoration:none;">Get started</a>
+          &nbsp;
+          <a href="/login" style="display:inline-block;color:#111;padding:12px 16px;text-decoration:underline;">Log in</a>
+        </p>
+
+        <h2 style="font-family:'Kanit',sans-serif;font-size:24px;margin:0 0 8px;">Simple, focused, built for table tennis</h2>
+        <p style="color:#444;margin:0 0 16px;">One tool for admins and coaches. No spreadsheets.</p>
+        <ul style="padding-left:20px;color:#333;">
+          <li><strong>Court bookings</strong> — view and manage every court booking in a daily calendar; see what's booked and what's free at a glance.</li>
+          <li><strong>Coaching schedules</strong> — schedule 1-on-1 and group coaching sessions; coaches log in to see their own timetable.</li>
+          <li><strong>Social play sessions</strong> — run social and casual play sessions and let members join online.</li>
+          <li><strong>Member management</strong> — add and manage members, track who's coaching with whom, and handle club admin in one place.</li>
+        </ul>
+
+        <p style="margin-top:40px;color:#666;">How it works: create your account, set up your club (name, courts and opening hours), then go live at <strong>yourclub.flinther.com</strong> and start taking bookings.</p>
+        <p style="margin-top:32px;color:#999;font-size:13px;">Club management for table tennis. © 2026 Flinther.</p>
+      </main>
+    </div>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>
