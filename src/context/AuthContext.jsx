@@ -65,8 +65,9 @@ export function AuthProvider({ children }) {
       return { success: true, user: data.user }
     } catch (err) {
       const message = err.response?.data?.message || 'Login failed. Please try again.'
+      const needsVerification = err.response?.data?.needsVerification === true
       setError(message)
-      return { success: false, message }
+      return { success: false, message, needsVerification }
     } finally {
       setLoading(false)
     }
